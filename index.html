@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>スナック EN</title>
+<meta name="theme-color" content="#7A2633">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="スナックEN">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="config.js"></script>
+<meta name="robots" content="noindex, nofollow">
+<meta name="format-detection" content="telephone=no">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho:wght@600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F7F4F0; --card:#FFFFFF; --ink:#1F1B1A; --sub:#5C5550; --faint:#6E6762;
+  --line:#E9E3DC; --line2:#EFEAE4; --chip:#F7F4F0;
+  --accent:#7A2633; --accent-dark:#5A1A25; --ok:#2F5D50; --warn:#8A5A12;
+  --side:#1F1B1A;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans JP',system-ui,sans-serif;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font-family:inherit;font-size:16px;color:inherit}
+a{color:var(--accent)}
+.hidden{display:none!important}
+.brand{font-family:'Shippori Mincho',serif;letter-spacing:.08em}
+
+/* 共通部品 */
+.card{background:var(--card);border-radius:16px;padding:16px 20px}
+.card h2{margin:0;font-size:16px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.muted{color:var(--sub);font-size:13px}
+.tiny{color:var(--faint);font-size:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:0 20px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-weight:700;font-size:15px;cursor:pointer;text-decoration:none}
+.btn:hover{background:var(--accent-dark)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.ghost{background:var(--card);color:var(--ink);border:1px solid #E0D9D1;font-weight:500}
+.btn.ghost:hover{background:var(--chip)}
+.btn.small{min-height:40px;padding:0 14px;font-size:14px}
+.btn.block{width:100%}
+.btn.danger{background:var(--card);color:var(--accent);border:1px solid var(--accent)}
+.link{background:none;border:none;color:var(--accent);font-size:14px;padding:10px 4px;cursor:pointer;min-height:44px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:14px;font-weight:500}
+.input{width:100%;min-height:48px;border:1px solid #D6CEC5;border-radius:12px;padding:0 14px;background:#fff}
+textarea.input{min-height:96px;padding:12px 14px;line-height:1.6;resize:vertical}
+.input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+.msg{border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.6}
+.msg.err{background:#F7E4E4;color:#7A1F1F}
+.msg.ok{background:#E3EFEA;color:#1F4A3E}
+.msg.warn{background:#F8EDD8;color:#6B4710}
+.badge{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:3px 7px;flex-shrink:0}
+.badge.imp{background:var(--accent);color:#fff}
+.badge.norm{background:#E9E3DC;color:var(--ink)}
+.badge.ok{background:#E3EFEA;color:var(--ok)}
+.badge.off{background:#EEE;color:#555}
+.badge.admin{background:#EADBDD;color:var(--accent-dark)}
+.check{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px;cursor:pointer}
+.check input{width:20px;height:20px;accent-color:var(--accent)}
+.loading{padding:48px 0;text-align:center;color:var(--sub);font-size:14px}
+
+/* ログイン系 */
+.auth{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.auth-box{width:100%;max-width:380px;display:flex;flex-direction:column;gap:18px}
+.auth-box .brand{font-size:30px;text-align:center;margin-bottom:4px}
+
+/* スタッフ画面 */
+.staff{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+.s-head{padding:16px 16px 8px;display:flex;justify-content:space-between;align-items:center}
+.s-head .brand{font-size:22px}
+.icon-btn{width:44px;height:44px;border-radius:12px;border:none;background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)}
+.icon-btn:hover{background:#EEE8E1}
+.s-main{flex:1;padding:4px 16px 110px;display:flex;flex-direction:column;gap:14px}
+.daybar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.daybar .day{font-weight:700;font-size:15px}
+.daybar .icon-btn{border:1px solid #E0D9D1;background:#fff}
+.daybar .icon-btn:disabled{opacity:.35}
+.big{font-size:36px;font-weight:700;color:var(--accent);letter-spacing:.02em;line-height:1.2}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.tile{background:var(--chip);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile span:first-child{font-size:12px;color:var(--sub)}
+.tile span:last-child{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.visit{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line2)}
+.visit:last-child{border-bottom:none}
+.visit .nm{font-size:15px;font-weight:700}
+.visit .nm small{font-size:12px;font-weight:400;color:var(--sub);margin-left:4px}
+.visit .amt{font-size:15px;font-weight:700;flex-shrink:0}
+.notice{display:flex;gap:10px;align-items:flex-start;padding:4px 0}
+.notice .tx{font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.s-nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:6px 0 calc(10px + env(safe-area-inset-bottom))}
+.s-nav-in{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.s-nav button{border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:52px;justify-content:center;color:var(--sub);font-size:12px;cursor:pointer}
+.s-nav button.on{color:var(--accent);font-weight:700}
+
+/* 管理者画面 */
+.admin{display:flex;flex-wrap:wrap;min-height:100vh}
+.a-side{flex:1 1 220px;background:var(--side);color:#F7F4F0;padding:20px 14px;display:flex;flex-direction:column;gap:4px}
+.a-side .brand{font-size:22px;padding:0 12px}
+.a-side .who{font-size:12px;color:#BDB5AD;padding:2px 12px 14px}
+.a-side button{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:10px;border:none;background:transparent;color:#E9E3DC;font-size:14px;text-align:left;cursor:pointer}
+.a-side button.on{background:#3A3332;color:#fff;font-weight:700}
+.a-side button:hover{background:#2E2827}
+.a-side .sep{height:1px;background:#3A3332;margin:10px 4px}
+.a-main{flex:999 1 560px;min-width:0;padding:24px 28px 48px;display:flex;flex-direction:column;gap:18px;max-width:1180px}
+.a-main h1{margin:0;font-size:22px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.kpi{background:var(--card);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.kpi .l{font-size:13px;color:var(--sub)}
+.kpi .v{font-size:24px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .s{font-size:12px;color:var(--faint)}
+.chart{display:flex;align-items:flex-end;gap:4px;height:180px;border-bottom:1px solid #E0D9D1;padding-top:8px;overflow-x:auto}
+.chart .b{flex:1 0 14px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:14px}
+.chart .bar{width:100%;background:#D9CFC6;border-radius:4px 4px 0 0;min-height:2px}
+.chart .b:last-child .bar{background:var(--accent)}
+.chart-x{display:flex;gap:4px;font-size:10px;color:var(--faint);overflow:hidden}
+.chart-x span{flex:1 0 14px;text-align:center;min-width:14px}
+.tbl-wrap{overflow-x:auto}
+table.tbl{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+.tbl th{text-align:left;font-weight:500;color:var(--sub);padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{padding:9px 6px;border-bottom:1px solid var(--line2);white-space:nowrap}
+.tbl td.r,.tbl th.r{text-align:right}
+.user{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line2)}
+.user:last-child{border-bottom:none}
+.user .acts{display:flex;flex-wrap:wrap;gap:8px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+@media (max-width:640px){
+  .a-side{flex-basis:100%;flex-direction:row;flex-wrap:wrap;align-items:center;padding:12px}
+  .a-side .brand{font-size:18px;padding:0 6px}
+  .a-side .who,.a-side .sep{display:none}
+  .a-side button{min-height:40px;padding:0 10px;font-size:13px}
+  .a-main{padding:18px 16px 40px}
+}
+
+/* 目標カレンダー */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-h{text-align:center;font-size:12px;color:var(--sub);padding:4px 0}
+.cal-c{position:relative;min-height:78px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:6px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;cursor:pointer;font:inherit;color:inherit;min-width:0}
+.cal-c:hover{border-color:#BFB4A9}
+.cal-c.empty{background:transparent;border-color:transparent;cursor:default}
+.cal-c.we{background:#F8ECEE}
+.cal-c.off{background:#EFEFEF;color:#767676}
+.cal-c.today{outline:2px solid var(--accent);outline-offset:-2px}
+.cal-c .dn{font-size:13px;font-weight:700;display:flex;gap:4px;align-items:center;width:100%}
+.cal-c .dn i{font-style:normal;font-size:10px;font-weight:500;color:var(--accent)}
+.cal-c .tg{font-size:12px;color:var(--sub);white-space:nowrap}
+.cal-c .ac{font-size:13px;font-weight:700;white-space:nowrap}
+.good{color:var(--ok)} .mid{color:var(--warn)} .bad{color:#9B2C2C}
+.jd{font-size:13px;font-weight:700}
+.pbar{position:relative;height:18px;background:#EFEAE4;border-radius:9px;margin:30px 0 6px}
+.pfill{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:9px}
+.pmark{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--ink)}
+.pmark span{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:11px;color:var(--sub);white-space:nowrap;padding-bottom:2px}
+.pmark:last-child span{transform:translateX(-90%)}
+@media (max-width:640px){
+  .cal{gap:2px}
+  .cal-c{min-height:64px;padding:4px 3px;border-radius:8px}
+  .cal-c .dn i{display:none}
+  .cal-c .tg,.cal-c .ac{font-size:10.5px;letter-spacing:-.02em}
+  .cal-c .mk{position:absolute;top:3px;right:4px;font-size:11px}
+  .tbl td,.tbl th{padding:8px 4px}
+}
+.today-card{border:2px solid var(--accent)}
+
+/* ダイアログ */
+.modal-bg{position:fixed;inset:0;background:rgba(20,16,15,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal{background:#fff;border-radius:18px;padding:22px 20px;width:100%;max-width:420px;max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.modal h3{margin:0;font-size:18px}
+.copybox{background:var(--chip);border-radius:12px;padding:14px;font-size:14px;line-height:1.8;white-space:pre-wrap;word-break:break-all;user-select:all}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#1F1B1A;color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;z-index:60;max-width:90vw}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">読み込み中…</div></div>
+<div id="modal-root"></div>
+
+<script>
+var CONF = window.EN_CONFIG || {};
+var API_URL = CONF.apiUrl || '';
+var APP_NAME = CONF.appName || 'スナック EN';
+var RESET_TOKEN = (function () { var m = location.search.match(/[?&]reset=([0-9a-f]{48})/); return m ? m[1] : ''; })();
+
+/* ---------- 状態 ---------- */
+var state = { token: null, user: null, staffDate: null, staffTab: 'home', adminTab: 'dash', adminMonth: null, plMonth: null, showAllVisits: false };
+var mem = {};
+function store(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { if (v == null) delete mem[k]; else mem[k] = v; } }
+function load(k) { try { return localStorage.getItem(k); } catch (e) { return mem[k] || null; } }
+
+/* ---------- 部品 ---------- */
+function $(s, r) { return (r || document).querySelector(s); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function yen(n) { return '¥' + Math.round(Number(n) || 0).toLocaleString('ja-JP'); }
+function num(n) { return Math.round(Number(n) || 0).toLocaleString('ja-JP'); }
+var WD = ['日', '月', '火', '水', '木', '金', '土'];
+function dayLabel(key) { if (!key) return ''; var p = key.split('-'); var d = new Date(+p[0], +p[1] - 1, +p[2]); return (+p[1]) + '/' + (+p[2]) + '（' + WD[d.getDay()] + '）'; }
+function monthLabel(m) { if (!m) return ''; var p = m.split('-'); return p[0] + '年' + (+p[1]) + '月'; }
+function render(html) { $('#app').innerHTML = html; window.scrollTo(0, 0); }
+function toast(t) { var d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(function () { d.remove(); }, 2600); }
+function busy(btn, on, label) { if (!btn) return; if (on) { btn.dataset.l = btn.textContent; btn.textContent = label || '処理中…'; btn.disabled = true; } else { btn.textContent = btn.dataset.l || btn.textContent; btn.disabled = false; } }
+function showMsg(el, text, ok) { el.innerHTML = text ? '<div class="msg ' + (ok ? 'ok' : 'err') + '">' + esc(text) + '</div>' : ''; }
+
+var ICON = {
+  home: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>',
+  book: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h7a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4z"/><path d="M20 4h-7a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h7z"/></svg>',
+  cal: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  menu: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+  left: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
+  right: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
+};
+
+/* ---------- サーバー呼び出し ---------- */
+function call(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  if (!API_URL) return Promise.reject(new Error('アプリの設定（config.js の apiUrl）がまだです。'));
+  return fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },  // text/plain にすると事前確認の通信が不要になる
+    body: JSON.stringify({ fn: fn, args: args }),
+    redirect: 'follow'
+  }).then(function (r) {
+    if (!r.ok) throw new Error('通信に失敗しました（' + r.status + '）。電波の良いところでもう一度お試しください。');
+    return r.json();
+  }, function () {
+    throw new Error('通信できませんでした。電波の良いところでもう一度お試しください。');
+  }).then(function (res) {
+    if (res && res.ok) return res.data;
+    var m = String((res && res.error) || '不明なエラー');
+    if (m.indexOf('AUTH') >= 0) { logoutLocal('ログインの有効期限が切れたか、アカウントが停止されています。'); return null; }
+    if (m.indexOf('MUST_CHANGE') >= 0) { renderChange(true); return null; }
+    throw new Error(m);
+  });
+}
+function failBox(err) { return '<div class="msg err">エラーが発生しました：' + esc(err.message || err) + '</div>'; }
+
+/* ---------- ダイアログ ---------- */
+function openModal(html) {
+  $('#modal-root').innerHTML = '<div class="modal-bg"><div class="modal" role="dialog" aria-modal="true">' + html + '</div></div>';
+  var bg = $('#modal-root .modal-bg');
+  bg.addEventListener('click', function (e) { if (e.target === bg) closeModal(); });
+  var f = $('#modal-root input, #modal-root textarea, #modal-root button');
+  if (f) f.focus();
+  return $('#modal-root .modal');
+}
+function closeModal() { $('#modal-root').innerHTML = ''; }
+function confirmBox(title, text, okLabel) {
+  return new Promise(function (resolve) {
+    var m = openModal('<h3>' + esc(title) + '</h3><p class="muted" style="margin:0;line-height:1.7">' + esc(text) + '</p>' +
+      '<div class="row" style="justify-content:flex-end"><button class="btn ghost small" id="cb-no">やめる</button><button class="btn small" id="cb-yes">' + esc(okLabel || 'OK') + '</button></div>');
+    $('#cb-no', m).onclick = function () { closeModal(); resolve(false); };
+    $('#cb-yes', m).onclick = function () { closeModal(); resolve(true); };
+  });
+}
+function copyText(t) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(function () { toast('コピーしました'); }, function () { toast('長押しで選んでコピーしてください'); });
+  } else toast('長押しで選んでコピーしてください');
+}
+
+/* =========================================================
+ * 起動
+ * ======================================================= */
+function start() {
+  if (RESET_TOKEN) { renderReset(); return; }
+  state.token = load('en_token');
+  if (!state.token) { renderLogin(); return; }
+  call('apiMe', state.token, location.origin + location.pathname).then(function (r) {
+    if (!r) return;
+    state.user = r.user;
+    if (r.user.mustChange) renderChange(true); else enterApp();
+  }).catch(function (err) {
+    // 通信できないだけのときはログアウトさせず、もう一度試せるようにする
+    render(authShell('<div class="stack"><div class="msg err">' + esc(err.message) + '</div><button class="btn block" id="retry">もう一度読み込む</button></div>'));
+    $('#retry').onclick = start;
+  });
+}
+function remember(token) { store('en_token', token); }
+function enterApp() { if (state.user.role === 'admin') renderAdmin(); else renderStaff(); }
+function logoutLocal(msg) { store('en_token', null); state.token = null; state.user = null; closeModal(); renderLogin(msg); }
+function logout() { var t = state.token; logoutLocal(); if (t) call('apiLogout', t).catch(function () {}); }
+
+/* =========================================================
+ * ログイン・パスワード
+ * ======================================================= */
+function authShell(inner) { return '<div class="auth"><div class="auth-box"><div class="brand">' + esc(APP_NAME) + '</div>' + inner + '</div></div>'; }
+
+function renderLogin(msg) {
+  render(authShell(
+    '<form id="f" class="stack" autocomplete="on">' +
+    '<div id="m">' + (msg ? '<div class="msg err">' + esc(msg) + '</div>' : '') + '</div>' +
+    '<div class="field"><label for="id">ログインID</label><input class="input" id="id" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>' +
+    '<div class="field"><label for="pw">パスワード</label><input class="input" id="pw" type="password" name="password" autocomplete="current-password" required></div>' +
+    '<button class="btn block" id="go">ログイン</button>' +
+    '</form>' +
+    '<div style="text-align:center"><button class="link" id="forgot">パスワードを忘れた方</button></div>'));
+  $('#forgot').onclick = renderForgot;
+  $('#f').onsubmit = function (e) {
+    e.preventDefault();
+    var btn = $('#go'); busy(btn, true, 'ログイン中…');
+    call('apiLogin', $('#id').value, $('#pw').value).then(function (r) {
+      busy(btn, false);
+      if (!r.ok) { showMsg($('#m'), r.error); return; }
+      state.token = r.token; state.user = r.user; remember(r.token);
+      if (r.user.role === 'admin') call('apiMe', r.token, location.origin + location.pathname).catch(function () {});
+      if (r.user.mustChange) renderChange(true); else enterApp();
+    }).catch(function (err) { busy(btn, false); showMsg($('#m'), err.message); });
+  };
+}
+
+function renderForgot() {
+  render(authShell(
+    '<div class="stack"><h1 style="margin:0;font-size:20px">パスワードを忘れた方</h1>' +
+    '<p class="muted" style="margin:0;line-height:1.7">登録しているメールアドレスを入力してください。パスワードを設定し直すためのリンクをお送りします。</p>' +
+    '<form id="f" class="stack"><div id="m"></div>' +
+    '<div class="field"><label for="em">メールアドレス</label><input class="input" id="em" type="email" autocomplete="email" required></div>' +
+    '<button class="btn block" id="go">再設定のメールを送る</button></form>' +
+    '<p class="tiny" style="margin:0;line-height:1.7">メールアドレスを登録していない方は、管理者にパスワードの再発行を頼んでください。</p>' +
+    '<div style="text-align:center"><button class="link" id="back">ログイン画面に戻る</button></div></div>'));
+  $('#back').onclick = function () { renderLogin(); };
+  $('#f').onsubmit = function (e) {
+    e.preventDefault();
+    var btn = $('#go'); busy(btn, true, '送信中…');
+    call('apiRequestReset', $('#em').value).then(function (r) {
+      busy(btn, false);
+      showMsg($('#m'), r.ok ? r.message : r.error, r.ok);
+    }).catch(function (err) { busy(btn, false); showMsg($('#m'), err.message); });
+  };
+}
+
+function renderReset() {
+  render(authShell(
+    '<div class="stack"><h1 style="margin:0;font-size:20px">新しいパスワードの設定</h1>' +
+    '<form id="f" class="stack"><div id="m"></div>' +
+    '<div class="field"><label for="p1">新しいパスワード（8文字以上）</label><input class="input" id="p1" type="password" autocomplete="new-password" required></div>' +
+    '<div class="field"><label for="p2">もう一度入力</label><input class="input" id="p2" type="password" autocomplete="new-password" required></div>' +
+    '<button class="btn block" id="go">設定する</button></form></div>'));
+  $('#f').onsubmit = function (e) {
+    e.preventDefault();
+    if ($('#p1').value !== $('#p2').value) { showMsg($('#m'), '2回入力したパスワードが一致しません。'); return; }
+    var btn = $('#go'); busy(btn, true);
+    call('apiResetPassword', RESET_TOKEN, $('#p1').value).then(function (r) {
+      busy(btn, false);
+      if (!r.ok) { showMsg($('#m'), r.error); return; }
+      RESET_TOKEN = '';
+      try { history.replaceState(null, '', location.pathname); } catch (e) {}
+      render(authShell('<div class="stack"><div class="msg ok">パスワードを設定しました。ログインID「' + esc(r.loginId) + '」でログインしてください。</div>' +
+        '<button class="btn block" id="tologin">ログイン画面へ</button></div>'));
+      $('#tologin').onclick = function () { renderLogin(); };
+    }).catch(function (err) { busy(btn, false); showMsg($('#m'), err.message); });
+  };
+}
+
+function renderChange(forced) {
+  closeModal();
+  render(authShell(
+    '<div class="stack"><h1 style="margin:0;font-size:20px">パスワードの変更</h1>' +
+    (forced ? '<p class="muted" style="margin:0;line-height:1.7">はじめに、仮パスワードを自分だけのパスワードに変更してください。</p>' : '') +
+    '<form id="f" class="stack"><div id="m"></div>' +
+    '<div class="field"><label for="p0">' + (forced ? '仮パスワード' : '今のパスワード') + '</label><input class="input" id="p0" type="password" autocomplete="current-password" required></div>' +
+    '<div class="field"><label for="p1">新しいパスワード（8文字以上）</label><input class="input" id="p1" type="password" autocomplete="new-password" required></div>' +
+    '<div class="field"><label for="p2">もう一度入力</label><input class="input" id="p2" type="password" autocomplete="new-password" required></div>' +
+    '<button class="btn block" id="go">変更する</button></form>' +
+    '<div style="text-align:center"><button class="link" id="back">' + (forced ? 'ログアウト' : '戻る') + '</button></div></div>'));
+  $('#back').onclick = forced ? logout : enterApp;
+  $('#f').onsubmit = function (e) {
+    e.preventDefault();
+    if ($('#p1').value !== $('#p2').value) { showMsg($('#m'), '2回入力したパスワードが一致しません。'); return; }
+    var btn = $('#go'); busy(btn, true);
+    call('apiChangePassword', state.token, $('#p0').value, $('#p1').value).then(function (r) {
+      busy(btn, false);
+      if (!r.ok) { showMsg($('#m'), r.error); return; }
+      state.user = r.user; toast('パスワードを変更しました'); enterApp();
+    }).catch(function (err) { busy(btn, false); showMsg($('#m'), err.message); });
+  };
+}
+
+function accountMenu() {
+  var isAdmin = state.user.role === 'admin';
+  var m = openModal('<h3>' + esc(state.user.name) + ' さん</h3><p class="tiny" style="margin:-8px 0 0">ID：' + esc(state.user.loginId) + '</p>' +
+    (isAdmin ? '<button class="btn block" id="am-admin">管理画面へ</button>' : '') +
+    '<button class="btn ghost block" id="am-pw">パスワードを変更</button>' +
+    '<button class="btn ghost block" id="am-out">ログアウト</button>' +
+    '<button class="link" id="am-close">閉じる</button>');
+  if (isAdmin) $('#am-admin', m).onclick = function () { closeModal(); renderAdmin(); };
+  $('#am-pw', m).onclick = function () { renderChange(false); };
+  $('#am-out', m).onclick = logout;
+  $('#am-close', m).onclick = closeModal;
+}
+
+/* =========================================================
+ * スタッフ画面
+ * ======================================================= */
+function renderStaff() {
+  render(
+    '<div class="staff">' +
+    '<header class="s-head"><div class="brand">' + esc(APP_NAME) + '</div>' +
+    '<button class="icon-btn" id="menu" aria-label="メニュー">' + ICON.menu + '</button></header>' +
+    '<main class="s-main" id="s-main"><div class="loading">読み込み中…</div></main>' +
+    '<nav class="s-nav" aria-label="メインメニュー"><div class="s-nav-in">' +
+    '<button data-tab="home">' + ICON.home + 'ホーム</button>' +
+    '<button data-tab="manual">' + ICON.book + 'マニュアル</button>' +
+    '<button data-tab="shift">' + ICON.cal + 'シフト</button>' +
+    '</div></nav></div>');
+  $('#menu').onclick = accountMenu;
+  Array.prototype.forEach.call(document.querySelectorAll('.s-nav button'), function (b) {
+    b.onclick = function () { state.staffTab = b.dataset.tab; staffTab(); };
+  });
+  staffTab();
+}
+
+function staffTab() {
+  Array.prototype.forEach.call(document.querySelectorAll('.s-nav button'), function (b) {
+    b.classList.toggle('on', b.dataset.tab === state.staffTab);
+    if (b.dataset.tab === state.staffTab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+  var main = $('#s-main');
+  if (state.staffTab === 'manual' || state.staffTab === 'shift') {
+    var t = state.staffTab === 'manual' ? 'マニュアル' : 'シフト';
+    main.innerHTML = '<h1 style="margin:4px 0 0;font-size:22px">' + t + '</h1><div class="card"><p class="muted" style="margin:0;line-height:1.8">' + t + 'は準備中です。次の更新で使えるようになります。</p></div>';
+    return;
+  }
+  loadStaffHome();
+}
+
+function loadStaffHome() {
+  var main = $('#s-main');
+  main.innerHTML = '<div class="loading">読み込み中…</div>';
+  call('apiStaffHome', state.token, state.staffDate).then(function (d) {
+    if (d) drawStaffHome(d);
+  }).catch(function (err) { main.innerHTML = failBox(err); });
+}
+
+function drawStaffHome(d) {
+  var main = $('#s-main');
+  var h = '';
+  if (d.today) {
+    h += '<section class="card today-card"><div class="muted">今日 ' + dayLabel(d.today.date) + (d.today.kind === '週末' ? '・週末' : '') + ' の目標</div>' +
+      '<div class="big" style="font-size:30px">' + yen(d.today.target) + '</div>' +
+      (d.today.monthLeft != null ? '<div class="tiny" style="margin-top:4px">今月の目標まで あと ' + yen(d.today.monthLeft) + '</div>' : '') + '</section>';
+  }
+  if (!d.date) {
+    h += '<div class="card"><p class="muted" style="margin:0">売上データがまだ読み込まれていません。</p></div>';
+  } else {
+    var i = d.dates.indexOf(d.date);
+    var older = d.dates[i + 1], newer = d.dates[i - 1];
+    h += '<div class="daybar"><button class="icon-btn" id="d-prev" aria-label="前の営業日"' + (older ? '' : ' disabled') + '>' + ICON.left + '</button>' +
+      '<span class="day">' + dayLabel(d.date) + ' の営業</span>' +
+      '<button class="icon-btn" id="d-next" aria-label="次の営業日"' + (newer ? '' : ' disabled') + '>' + ICON.right + '</button></div>';
+
+    var tiles = [];
+    if (d.visits != null) {
+      tiles.push(['来店', num(d.visits) + '名']);
+      tiles.push(['新規／常連', num(d.newCount) + '／' + num(d.regularCount)]);
+    }
+    if (d.targetRate != null) tiles.push(['今月の目標', d.targetRate + '%']);
+    else if (d.monthTotal != null) tiles.push(['今月累計', yen(d.monthTotal)]);
+
+    if (d.total != null || tiles.length) {
+      h += '<section class="card">';
+      if (d.total != null) {
+        h += '<div class="muted">売上</div><div class="big">' + yen(d.total) + '</div>';
+        if (d.dayTarget) {
+          var diff = d.total - d.dayTarget;
+          h += '<div class="muted" style="margin-top:2px">目標 ' + yen(d.dayTarget) + '　' +
+            (diff >= 0 ? '<b class="good">◎ 達成（＋' + yen(diff) + '）</b>' : '<b class="bad">あと ' + yen(-diff) + '</b>') + '</div>';
+        }
+      }
+      if (tiles.length) h += '<div class="tiles">' + tiles.map(function (t) { return '<div class="tile"><span>' + t[0] + '</span><span>' + esc(t[1]) + '</span></div>'; }).join('') + '</div>';
+      if (d.monthTotal != null && d.targetRate != null) h += '<div class="tiny" style="margin-top:10px">今月の累計：' + yen(d.monthTotal) + '</div>';
+      if (d.members) h += '<div class="muted" style="margin-top:10px;line-height:1.6">出勤：' + esc(d.members) + '</div>';
+      h += '</section>';
+    } else if (d.members) {
+      h += '<section class="card"><div class="muted" style="line-height:1.6">出勤：' + esc(d.members) + '</div></section>';
+    }
+
+    if (d.visitList) {
+      var list = d.visitList, limit = 5;
+      var shown = state.showAllVisits ? list : list.slice(0, limit);
+      h += '<section class="card"><div class="row"><h2>来店（' + list.length + '組）</h2></div>';
+      if (!list.length) h += '<p class="muted" style="margin:10px 0 0">この日の来店明細はありません。</p>';
+      h += shown.map(function (v) {
+        var sub = [];
+        if (v.people) sub.push(num(v.people) + '名');
+        return '<div class="visit"><div style="min-width:0"><div class="nm">' + esc(v.name) + (sub.length ? '<small>' + sub.join('・') + '</small>' : '') + '</div>' +
+          (v.bottle ? '<div class="tiny">ボトル：' + esc(v.bottle) + '</div>' : '') + '</div>' +
+          (v.amount != null ? '<div class="amt">' + (v.amount ? yen(v.amount) : '—') + '</div>' : '') + '</div>';
+      }).join('');
+      if (list.length > limit) h += '<button class="link" id="v-all">' + (state.showAllVisits ? '閉じる' : 'すべて見る（' + list.length + '組）') + '</button>';
+      h += '</section>';
+    }
+  }
+
+  h += '<section class="card"><h2>お知らせ</h2>';
+  if (!d.notices.length) h += '<p class="muted" style="margin:10px 0 0">お知らせはありません。</p>';
+  h += d.notices.map(function (n) {
+    return '<div class="notice" style="margin-top:10px"><span class="badge ' + (n.important ? 'imp">重要' : 'norm">連絡') + '</span>' +
+      '<div><div class="tx">' + esc(n.text) + '</div><div class="tiny">' + esc(n.createdAt.slice(5, 10).replace('-', '/')) + '</div></div></div>';
+  }).join('');
+  h += '</section>';
+  if (d.lastSync) h += '<p class="tiny" style="text-align:center;margin:0">データ更新：' + esc(d.lastSync) + '</p>';
+
+  main.innerHTML = h;
+  if (d.date) {
+    var i2 = d.dates.indexOf(d.date);
+    var p = $('#d-prev'), n2 = $('#d-next');
+    if (p) p.onclick = function () { state.staffDate = d.dates[i2 + 1]; state.showAllVisits = false; loadStaffHome(); };
+    if (n2) n2.onclick = function () { state.staffDate = d.dates[i2 - 1]; state.showAllVisits = false; loadStaffHome(); };
+    var all = $('#v-all');
+    if (all) all.onclick = function () { state.showAllVisits = !state.showAllVisits; drawStaffHome(d); };
+  }
+}
+
+/* =========================================================
+ * 管理者画面
+ * ======================================================= */
+var ADMIN_TABS = [['dash', 'ダッシュボード'], ['pl', '月次収支'], ['cal', '目標・カレンダー'], ['users', 'スタッフ管理'], ['notices', 'お知らせ'], ['settings', '設定']];
+
+function renderAdmin() {
+  render(
+    '<div class="admin"><nav class="a-side" aria-label="管理メニュー">' +
+    '<div class="brand">' + esc(APP_NAME) + '</div><div class="who">' + esc(state.user.name) + ' でログイン中</div>' +
+    ADMIN_TABS.map(function (t) { return '<button data-tab="' + t[0] + '">' + t[1] + '</button>'; }).join('') +
+    '<div class="sep"></div>' +
+    '<button id="to-staff">スタッフ画面を見る</button><button id="a-menu">アカウント</button>' +
+    '</nav><main class="a-main" id="a-main"></main></div>');
+  Array.prototype.forEach.call(document.querySelectorAll('.a-side [data-tab]'), function (b) {
+    b.onclick = function () { state.adminTab = b.dataset.tab; adminTab(); };
+  });
+  $('#to-staff').onclick = function () { state.staffTab = 'home'; renderStaff(); };
+  $('#a-menu').onclick = adminAccountMenu;
+  adminTab();
+}
+
+function adminAccountMenu() {
+  var m = openModal('<h3>' + esc(state.user.name) + ' さん</h3><p class="tiny" style="margin:-8px 0 0">ID：' + esc(state.user.loginId) + '</p>' +
+    '<button class="btn ghost block" id="am-pw">パスワードを変更</button><button class="btn ghost block" id="am-out">ログアウト</button><button class="link" id="am-close">閉じる</button>');
+  $('#am-pw', m).onclick = function () { renderChange(false); };
+  $('#am-out', m).onclick = logout;
+  $('#am-close', m).onclick = closeModal;
+}
+
+function adminTab() {
+  Array.prototype.forEach.call(document.querySelectorAll('.a-side [data-tab]'), function (b) {
+    b.classList.toggle('on', b.dataset.tab === state.adminTab);
+  });
+  var main = $('#a-main');
+  main.innerHTML = '<div class="loading">読み込み中…</div>';
+  ({ dash: adminDash, pl: adminPL, cal: adminCalendar, users: adminUsers, notices: adminNotices, settings: adminSettings })[state.adminTab](main);
+}
+
+/* ---------- 目標・カレンダー ---------- */
+function man(n) { n = Number(n) || 0; if (n >= 10000) return (Math.round(n / 1000) / 10) + '万'; if (n >= 1000) return (Math.round(n / 100) / 100) + '万'; return num(n); }
+function mark(actual, be, pt) {
+  if (actual == null) return null;
+  if (pt > 0 && actual >= pt) return { s: '◎', c: 'good', t: '利益目標を達成' };
+  if (be > 0 && actual >= be) return { s: '○', c: 'mid', t: '損益分岐を超えた' };
+  return { s: '▲', c: 'bad', t: '損益分岐に届かず' };
+}
+
+function adminCalendar(main) {
+  call('apiAdminCalendar', state.token, state.calMonth).then(function (d) {
+    if (!d) return;
+    var h = '<div class="row" style="flex-wrap:wrap"><h1>目標・カレンダー</h1><button class="btn ghost small" id="tsync">目標ファイルを読み込む</button></div>';
+    h += '<p class="tiny" style="margin:-8px 0 0">目標ファイル：' + esc(d.targetName || '未設定') + (d.lastSync ? '　最終読み込み：' + esc(d.lastSync) : '') + '</p>';
+    if (!d.month) {
+      h += '<div class="card"><p class="muted" style="margin:0;line-height:1.8">目標がまだ読み込まれていません。「設定」→「目標ファイル」に、Googleドライブに置いた目標計算.xlsx のURLを登録してください。</p></div>';
+      main.innerHTML = h; bindTargetSync(); return;
+    }
+    var s = d.summary || {};
+    h += '<div class="row" style="justify-content:flex-start;gap:10px"><label for="cmon" class="muted">表示する月</label>' +
+      '<select class="input" id="cmon" style="width:auto;min-height:44px">' + d.months.map(function (m) { return '<option value="' + m + '"' + (m === d.month ? ' selected' : '') + '>' + monthLabel(m) + '</option>'; }).join('') + '</select></div>';
+
+    if (!(s.pt > 0)) {
+      h += '<div class="msg err">この月の目標が0円です。目標計算.xlsx の「設定」シートに費用と目標利益を入れて、もう一度読み込んでください。</div>';
+    }
+
+    // 目標の表
+    h += '<section class="card stack"><h2>' + monthLabel(d.month) + 'の目標</h2><div class="tbl-wrap"><table class="tbl" style="min-width:0"><thead><tr><th></th><th class="r">損益分岐</th><th class="r">利益目標</th></tr></thead><tbody>' +
+      '<tr><td><b>月の売上</b></td><td class="r"><b>' + yen(s.be) + '</b></td><td class="r"><b>' + yen(s.pt) + '</b></td></tr>' +
+      '<tr><td style="white-space:normal">平日1日<div class="tiny">' + num(s.weekdayDays) + '日</div></td><td class="r">' + yen(s.weekdayBe) + '</td><td class="r">' + yen(s.weekdayPt) + '</td></tr>' +
+      '<tr><td style="white-space:normal">週末1日<div class="tiny">金・土・祝前日 ' + num(s.weekendDays) + '日</div></td><td class="r">' + yen(s.weekendBe) + '</td><td class="r">' + yen(s.weekendPt) + '</td></tr>' +
+      '</tbody></table></div><p class="tiny" style="margin:0">休業日：' + num(s.closedDays) + '日。費用や倍率を変えるときは、目標計算.xlsx を直して保存してください（1時間以内に反映されます）。</p></section>';
+
+    // 進み具合
+    var p = d.progress;
+    if (p) {
+      var rateBe = s.be ? Math.round(p.actual / s.be * 100) : 0, ratePt = s.pt ? Math.round(p.actual / s.pt * 100) : 0;
+      var diffPt = p.actual - p.ptToDate, diffBe = p.actual - p.beToDate;
+      var maxV = Math.max(s.pt, p.actual, 1);
+      h += '<section class="card stack"><h2>進み具合（' + dayLabel(p.asOf) + 'まで）</h2>' +
+        '<div class="kpis">' +
+        kpi('実績', yen(p.actual), '損益分岐の' + rateBe + '%・利益目標の' + ratePt + '%') +
+        kpi('この日までの利益目標', yen(p.ptToDate), (diffPt >= 0 ? '＋' : '－') + yen(Math.abs(diffPt)) + (diffPt >= 0 ? ' 上回っています' : ' 足りません')) +
+        kpi('この日までの損益分岐', yen(p.beToDate), (diffBe >= 0 ? '＋' : '－') + yen(Math.abs(diffBe)) + (diffBe >= 0 ? ' 上回っています' : ' 足りません')) +
+        '</div>' +
+        '<div class="pbar" role="img" aria-label="月の実績 ' + yen(p.actual) + '、損益分岐 ' + yen(s.be) + '、利益目標 ' + yen(s.pt) + '">' +
+        '<div class="pfill" style="width:' + Math.min(100, p.actual / maxV * 100) + '%"></div>' +
+        '<div class="pmark" style="left:' + (s.be / maxV * 100) + '%"><span>損益分岐</span></div>' +
+        '<div class="pmark" style="left:' + (s.pt / maxV * 100) + '%"><span>利益目標</span></div></div>';
+      if (p.restDays > 0) {
+        h += '<div class="need"><div class="muted" style="margin-bottom:6px">残り' + p.restDays + '営業日（平日' + p.restWeekday + '・週末' + p.restWeekend + '）で必要な1日の売上</div>' +
+          '<div class="tbl-wrap"><table class="tbl" style="min-width:0"><thead><tr><th></th><th class="r">平日1日</th><th class="r">週末1日</th><th class="r">あと</th></tr></thead><tbody>' +
+          (p.needBe ? '<tr><td>損益分岐まで</td><td class="r">' + yen(p.needBe.weekday) + '</td><td class="r">' + yen(p.needBe.weekend) + '</td><td class="r">' + yen(p.shortBe) + '</td></tr>' : '') +
+          (p.needPt ? '<tr><td><b>利益目標まで</b></td><td class="r"><b>' + yen(p.needPt.weekday) + '</b></td><td class="r"><b>' + yen(p.needPt.weekend) + '</b></td><td class="r"><b>' + yen(p.shortPt) + '</b></td></tr>' : '') +
+          '</tbody></table></div></div>';
+      }
+      h += '</section>';
+    }
+
+    // カレンダー
+    var byDate = {}; d.days.forEach(function (x) { byDate[x.date] = x; });
+    var first = d.month + '-01', pp = first.split('-');
+    var fd = new Date(+pp[0], +pp[1] - 1, 1), lastDay = new Date(+pp[0], +pp[1], 0).getDate();
+    var lead = (fd.getDay() + 6) % 7;
+    h += '<section class="card stack"><div class="row" style="flex-wrap:wrap"><h2>カレンダー</h2>' +
+      '<span class="tiny">上：利益目標　下：実績　◎利益目標達成 ○損益分岐超え ▲損益分岐未満</span></div>' +
+      '<div class="cal" role="grid">' + ['月', '火', '水', '木', '金', '土', '日'].map(function (w) { return '<div class="cal-h">' + w + '</div>'; }).join('');
+    for (var i = 0; i < lead; i++) h += '<div class="cal-c empty"></div>';
+    for (var dd = 1; dd <= lastDay; dd++) {
+      var key = d.month + '-' + (dd < 10 ? '0' : '') + dd, x = byDate[key];
+      if (!x) { h += '<div class="cal-c empty"><span class="dn">' + dd + '</span></div>'; continue; }
+      var mk = mark(x.actual, x.be, x.pt);
+      var cls = 'cal-c ' + (x.kind === '休業' ? 'off' : x.kind === '週末' ? 'we' : '') + (key === d.today ? ' today' : '');
+      h += '<button class="' + cls + '" data-day="' + key + '" aria-label="' + dayLabel(key) + ' ' + x.kind + '">' +
+        '<span class="dn">' + dd + (x.kind === '週末' ? '<i>週末</i>' : '') + '</span>' +
+        (x.kind === '休業' ? '<span class="tg">休</span>' : '<span class="tg">' + man(x.pt) + '</span>') +
+        (x.actual != null ? '<span class="ac ' + (mk ? mk.c : '') + '">' + (mk ? '<b class="mk" aria-label="' + mk.t + '">' + mk.s + '</b>' : '') + man(x.actual) + '</span>' : '') +
+        '</button>';
+    }
+    h += '</div><p class="tiny" style="margin:0">日付を押すと、その日の損益分岐・利益目標・実績が見られます。</p></section>';
+
+    // 週ごと
+    h += '<section class="card stack"><h2>週ごとの目標（月曜始まり）</h2><div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+      '<th>週</th><th>期間</th><th class="r">営業日</th><th class="r">損益分岐</th><th class="r">利益目標</th><th class="r">実績</th><th>判定</th></tr></thead><tbody>' +
+      d.weeks.map(function (w) {
+        var mk = w.hasActual && w.done ? mark(w.actual, w.be, w.pt) : null;
+        return '<tr><td>第' + w.week + '週</td><td>' + dayLabel(w.from) + '〜' + dayLabel(w.to) + '</td><td class="r">' + w.open + '日</td>' +
+          '<td class="r">' + yen(w.be) + '</td><td class="r"><b>' + yen(w.pt) + '</b></td><td class="r">' + (w.hasActual ? yen(w.actual) : '—') + '</td>' +
+          '<td>' + (mk ? '<span class="jd ' + mk.c + '">' + mk.s + ' ' + mk.t + '</span>' : (w.hasActual ? '<span class="tiny">集計中</span>' : '')) + '</td></tr>';
+      }).join('') + '</tbody></table></div></section>';
+
+    main.innerHTML = h;
+    $('#cmon').onchange = function () { state.calMonth = this.value; adminTab(); };
+    bindTargetSync();
+    Array.prototype.forEach.call(main.querySelectorAll('[data-day]'), function (b) {
+      b.onclick = function () { dayDetail(byDate[b.dataset.day]); };
+    });
+  }).catch(function (err) { main.innerHTML = failBox(err); });
+}
+
+function dayDetail(x) {
+  var mk = mark(x.actual, x.be, x.pt);
+  var rows = x.kind === '休業' ? '<p class="muted" style="margin:0">休業日です。</p>' :
+    '<table class="tbl" style="min-width:0"><tbody>' +
+    '<tr><td>区分</td><td class="r">' + esc(x.kind) + '</td></tr>' +
+    '<tr><td>損益分岐</td><td class="r">' + yen(x.be) + '</td></tr>' +
+    '<tr><td><b>利益目標</b></td><td class="r"><b>' + yen(x.pt) + '</b></td></tr>' +
+    '<tr><td>実績</td><td class="r">' + (x.actual != null ? yen(x.actual) : '—') + '</td></tr>' +
+    (x.actual != null ? '<tr><td>利益目標との差</td><td class="r">' + (x.actual - x.pt >= 0 ? '＋' : '－') + yen(Math.abs(x.actual - x.pt)) + '</td></tr>' : '') +
+    '</tbody></table>' + (mk ? '<p class="jd ' + mk.c + '" style="margin:0">' + mk.s + ' ' + mk.t + '</p>' : '');
+  var m = openModal('<h3>' + dayLabel(x.date) + '</h3>' + rows +
+    '<p class="tiny" style="margin:0;line-height:1.7">休業日や区分を変えるときは、目標計算.xlsx のその月のシートの「上書き」列で選んでください。</p>' +
+    '<button class="btn ghost block" id="dd-close">閉じる</button>');
+  $('#dd-close', m).onclick = closeModal;
+}
+
+function bindTargetSync() {
+  var b = $('#tsync'); if (!b) return;
+  b.onclick = function () {
+    busy(b, true, '読み込み中…（1分ほど）');
+    call('apiAdminSyncTargets', state.token).then(function (r) {
+      busy(b, false);
+      if (r && r.ok) { toast('読み込みました（' + r.months + 'か月分）'); adminTab(); }
+      else toast((r && r.error) || '読み込みに失敗しました');
+    }).catch(function (err) { busy(b, false); toast(err.message); });
+  };
+}
+
+/* ---------- ダッシュボード ---------- */
+function adminDash(main) {
+  call('apiAdminDashboard', state.token, state.adminMonth).then(function (d) {
+    if (!d) return;
+    var h = '<div class="row" style="flex-wrap:wrap"><h1>ダッシュボード</h1>' +
+      '<div class="row" style="gap:8px"><button class="btn ghost small" id="sync">今すぐ読み込む</button></div></div>';
+    h += '<p class="tiny" style="margin:-8px 0 0">読み込み元：' + esc(d.sourceName || '未設定') + (d.lastSync ? '　最終読み込み：' + esc(d.lastSync) : '') + '</p>';
+    if (!d.month) {
+      h += '<div class="card"><p class="muted" style="margin:0;line-height:1.8">売上データがまだありません。「設定」で売上ファイルを登録してください。</p></div>';
+      main.innerHTML = h; bindSync(); return;
+    }
+    var t = d.totals;
+    h += '<div class="row" style="justify-content:flex-start;gap:10px"><label for="mon" class="muted">表示する月</label>' +
+      '<select class="input" id="mon" style="width:auto;min-height:44px">' + d.months.map(function (m) { return '<option value="' + m + '"' + (m === d.month ? ' selected' : '') + '>' + monthLabel(m) + '</option>'; }).join('') + '</select></div>';
+    h += '<div class="kpis">' +
+      kpi('月の売上', yen(t.total), t.days + '営業日') +
+      kpi('利益目標の達成率', d.targetRate != null ? d.targetRate + '%' : '—', d.target ? '利益目標 ' + yen(d.target) + (d.breakEven ? '／損益分岐 ' + yen(d.breakEven) : '') : '目標ファイルを「設定」で登録') +
+      kpi('来店数', num(t.visits) + '名', '新規 ' + num(t.newCount) + '／常連 ' + num(t.regularCount)) +
+      kpi('1名あたり', yen(t.perVisit), '1日平均 ' + yen(t.perDay)) +
+      '</div>';
+    h += '<div class="kpis">' +
+      kpi('現金', yen(t.cash), '') + kpi('カード等', yen(t.card), '') + kpi('決済手数料', yen(t.fee), '') + kpi('税抜売上', yen(t.taxExcl), '') +
+      '</div>';
+
+    var max = Math.max.apply(null, d.days.map(function (x) { return x.total; }).concat([1]));
+    h += '<section class="card stack"><h2>日別の売上</h2><div class="chart" role="img" aria-label="' + monthLabel(d.month) + 'の日別売上">' +
+      d.days.map(function (x) { return '<div class="b" title="' + dayLabel(x.date) + ' ' + yen(x.total) + '"><div class="bar" style="height:' + Math.max(1, Math.round(x.total / max * 100)) + '%"></div></div>'; }).join('') +
+      '</div><div class="chart-x">' + d.days.map(function (x) { return '<span>' + (+x.date.slice(8)) + '</span>'; }).join('') + '</div></section>';
+
+    h += '<section class="card stack"><h2>日別の一覧</h2><div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+      '<th>日付</th><th class="r">売上</th><th class="r">現金</th><th class="r">カード等</th><th class="r">手数料</th><th class="r">来店</th><th class="r">新規</th><th class="r">常連</th></tr></thead><tbody>' +
+      d.days.slice().reverse().map(function (x) {
+        return '<tr><td>' + dayLabel(x.date) + '</td><td class="r"><b>' + yen(x.total) + '</b></td><td class="r">' + yen(x.cash) + '</td><td class="r">' + yen(x.card) + '</td><td class="r">' + yen(x.fee) + '</td><td class="r">' + num(x.visits) + '</td><td class="r">' + num(x.newCount) + '</td><td class="r">' + num(x.regularCount) + '</td></tr>';
+      }).join('') + '</tbody></table></div></section>';
+    main.innerHTML = h;
+    $('#mon').onchange = function () { state.adminMonth = this.value; adminTab(); };
+    bindSync();
+  }).catch(function (err) { main.innerHTML = failBox(err); });
+}
+function kpi(l, v, s) { return '<div class="kpi"><span class="l">' + esc(l) + '</span><span class="v">' + esc(v) + '</span>' + (s ? '<span class="s">' + esc(s) + '</span>' : '') + '</div>'; }
+function bindSync() {
+  var b = $('#sync'); if (!b) return;
+  b.onclick = function () {
+    busy(b, true, '読み込み中…（1分ほど）');
+    call('apiAdminSyncNow', state.token).then(function (r) {
+      busy(b, false);
+      if (r && r.ok) {
+        toast('読み込みました（' + r.days + '日分' + (r.expenses != null ? '、経費' + r.expenses + '件' : '') + '）' + (r.expenseError ? '。経費の読み込みに失敗：' + r.expenseError : ''));
+        adminTab();
+      }
+      else toast((r && r.error) || '読み込みに失敗しました');
+    }).catch(function (err) { busy(b, false); toast(err.message); });
+  };
+}
+
+/* ---------- 月次収支 ---------- */
+function ysign(n) { n = Math.round(Number(n) || 0); return n < 0 ? '−¥' + Math.abs(n).toLocaleString('ja-JP') : '¥' + n.toLocaleString('ja-JP'); }
+function plClass(n) { return n < 0 ? 'bad' : 'good'; }
+
+function adminPL(main) {
+  call('apiAdminPL', state.token, state.plMonth).then(function (d) {
+    if (!d) return;
+    var h = '<div class="row" style="flex-wrap:wrap"><h1>月次収支</h1><div class="row" style="gap:8px"><button class="btn ghost small" id="sync">今すぐ読み込む</button></div></div>';
+    h += '<p class="tiny" style="margin:-8px 0 0">読み込み元：' + esc(d.sourceName || '未設定') + (d.lastSync ? '　最終読み込み：' + esc(d.lastSync) : '') + '</p>';
+    if (!d.month) {
+      h += '<div class="card"><p class="muted" style="margin:0;line-height:1.8">売上データがまだありません。「設定」で売上ファイルを登録してください。</p></div>';
+      main.innerHTML = h; bindSync(); return;
+    }
+    var x = d.detail;
+    if (d.salesWarning) h += '<div class="msg err">' + esc(d.salesWarning) + '</div>';
+    h += '<div class="row" style="justify-content:flex-start;gap:10px"><label for="plmon" class="muted">表示する月</label>' +
+      '<select class="input" id="plmon" style="width:auto;min-height:44px">' + d.months.map(function (m) { return '<option value="' + m + '"' + (m === d.month ? ' selected' : '') + '>' + monthLabel(m) + '</option>'; }).join('') + '</select></div>';
+
+    if (!x.hasMonthly) h += '<div class="msg warn">この月の「月次経費」の表が見つかりません。固定費・変動費・借入返済は入っていない数字です。売上管理.xlsx に「月次経費」のタブを足してください。</div>';
+    if (x.missing.length) h += '<div class="msg warn">まだ入力されていない変動費があります：' + esc(x.missing.join('、')) + '。<b>利益は仮の数字（実際より多め）</b>です。' +
+      '目安の金額（月次経費の「毎月の標準額」）で補うと、利益 ' + ysign(x.estProfit) + '、返済後の残り ' + ysign(x.estAfterRepay) + ' になります。</div>';
+    if (x.inProgress) h += '<div class="msg ok">今月は途中です。売上は今日まで、固定費は月の全額が入っています。</div>';
+
+    h += '<div class="kpis">' +
+      kpi('税抜売上', yen(x.taxExcl), x.days + '営業日') +
+      kpi('経費合計', yen(x.expense), '決済手数料 ' + yen(x.fee) + ' を除く') +
+      '<div class="kpi"><span class="l">利益</span><span class="v ' + plClass(x.profit) + '">' + esc(ysign(x.profit)) + '</span><span class="s">税抜売上 − 手数料 − 経費' + (x.missing.length ? '（仮）' : '') + '</span></div>' +
+      '<div class="kpi"><span class="l">返済後の残り</span><span class="v ' + plClass(x.afterRepay) + '">' + esc(ysign(x.afterRepay)) + '</span><span class="s">借入返済 ' + yen(x.repay) + ' を引いた後</span></div>' +
+      '</div>';
+
+    var line = function (label, val, opt) {
+      opt = opt || {};
+      return '<tr' + (opt.bold ? ' style="font-weight:700"' : '') + '><td style="white-space:normal">' + label + (opt.note ? '<div class="tiny">' + opt.note + '</div>' : '') + '</td><td class="r ' + (opt.cls || '') + '">' + esc(val) + '</td></tr>';
+    };
+    h += '<section class="card stack"><h2>' + monthLabel(d.month) + 'の収支</h2><div class="tbl-wrap"><table class="tbl" style="min-width:0"><tbody>' +
+      line('税抜売上', yen(x.taxExcl), { note: '総売上 ' + yen(x.total) + ' ÷ 1.1' }) +
+      line('− 決済手数料', ysign(-x.fee)) +
+      line('− 経費（立替精算）', ysign(-x.reimb), { note: x.reimbCount + '件。売上管理.xlsx の「経費」タブ' }) +
+      line('− 固定費', ysign(-x.fixed)) +
+      line('− 変動費', ysign(-x.variable), { note: x.missing.length ? '未入力 ' + x.missing.length + '項目' : '' }) +
+      line('利益', ysign(x.profit), { bold: true, cls: plClass(x.profit) }) +
+      line('− 借入返済', ysign(-x.repay), { note: '経費には含めません' }) +
+      line('返済後の残り', ysign(x.afterRepay), { bold: true, cls: plClass(x.afterRepay) }) +
+      '</tbody></table></div></section>';
+
+    if (x.groups.length) {
+      h += '<section class="card stack"><h2>月次経費の内訳</h2>' + x.groups.map(function (g) {
+        return '<div><div class="row" style="margin-bottom:4px"><b>' + (g.kind === '返済' ? '借入返済（経費に含めません）' : esc(g.kind) + '費') + '</b><b>' + yen(g.total) + '</b></div>' +
+          '<div class="tbl-wrap"><table class="tbl" style="min-width:0"><tbody>' +
+          g.items.map(function (i) { return '<tr><td>' + esc(i.item) + '<span class="tiny"> ' + esc(i.big) + '</span></td><td class="r">' + yen(i.amount) + '</td></tr>'; }).join('') +
+          '</tbody></table></div></div>';
+      }).join('') + '</section>';
+    }
+
+    if (x.byPayee.length) {
+      h += '<section class="card stack"><h2>立替精算の内訳</h2><p class="tiny" style="margin:-6px 0 0">支払先ごとの合計（金額の多い順）。</p><div class="tbl-wrap"><table class="tbl" style="min-width:0"><tbody>' +
+        x.byPayee.slice(0, 10).map(function (p) { return '<tr><td>' + esc(p.payee) + '</td><td class="r">' + yen(p.amount) + '</td></tr>'; }).join('') +
+        (x.byPayee.length > 10 ? '<tr><td class="tiny">ほか ' + (x.byPayee.length - 10) + ' か所</td><td></td></tr>' : '') +
+        '</tbody></table></div>' +
+        '<details><summary class="link" style="cursor:pointer">1件ずつ見る（' + x.lines.length + '件）</summary><div class="tbl-wrap"><table class="tbl"><thead><tr><th>日付</th><th>支払先</th><th>購入者</th><th class="r">金額</th></tr></thead><tbody>' +
+        x.lines.map(function (e) { return '<tr><td>' + dayLabel(e.date) + '</td><td>' + esc(e.payee) + '</td><td>' + esc(e.buyer) + '</td><td class="r">' + yen(e.amount) + '</td></tr>'; }).join('') +
+        '</tbody></table></div></details></section>';
+    }
+
+    h += '<section class="card stack"><h2>月ごとの推移</h2><p class="tiny" style="margin:-6px 0 0">行を押すと、その月を表示します。⚠は未入力の変動費がある月（利益は仮の数字）です。</p><div class="tbl-wrap"><table class="tbl"><thead><tr>' +
+      '<th>月</th><th class="r">税抜売上</th><th class="r">経費</th><th class="r">利益</th><th class="r">返済後の残り</th></tr></thead><tbody>' +
+      d.series.map(function (s) {
+        return '<tr data-m="' + s.month + '" style="cursor:pointer' + (s.month === d.month ? ';background:var(--chip)' : '') + '"><td>' + monthLabel(s.month) + (s.missing.length || !s.hasMonthly ? ' ⚠' : '') + '</td>' +
+          '<td class="r">' + yen(s.taxExcl) + '</td><td class="r">' + yen(s.expense) + '</td><td class="r ' + plClass(s.profit) + '"><b>' + esc(ysign(s.profit)) + '</b></td><td class="r ' + plClass(s.afterRepay) + '">' + esc(ysign(s.afterRepay)) + '</td></tr>';
+      }).join('') + '</tbody></table></div></section>';
+
+    main.innerHTML = h;
+    $('#plmon').onchange = function () { state.plMonth = this.value; adminTab(); };
+    Array.prototype.forEach.call(main.querySelectorAll('tr[data-m]'), function (tr) {
+      tr.onclick = function () { state.plMonth = tr.dataset.m; adminTab(); };
+    });
+    bindSync();
+  }).catch(function (err) { main.innerHTML = failBox(err); });
+}
+
+/* ---------- スタッフ管理 ---------- */
+function adminUsers(main) {
+  call('apiAdminUsers', state.token).then(function (users) {
+    if (!users) return;
+    var active = users.filter(function (u) { return u.active; }), stopped = users.filter(function (u) { return !u.active; });
+    var h = '<div class="row" style="flex-wrap:wrap"><h1>スタッフ管理</h1><button class="btn small" id="add">＋ アカウントを作る</button></div>';
+    h += '<section class="card"><h2>利用中（' + active.length + '人）</h2>' + active.map(userRow).join('') + '</section>';
+    if (stopped.length) h += '<section class="card"><h2>停止中（' + stopped.length + '人）</h2>' + stopped.map(userRow).join('') + '</section>';
+    h += '<p class="tiny" style="margin:0;line-height:1.7">退職したスタッフは「停止」を押してください。その時点から、ログイン中のスマホでも見られなくなります。</p>';
+    main.innerHTML = h;
+    $('#add').onclick = function () { userForm(null); };
+    Array.prototype.forEach.call(main.querySelectorAll('[data-act]'), function (b) {
+      var u = users.filter(function (x) { return x.loginId === b.dataset.id; })[0];
+      b.onclick = function () { userAction(b.dataset.act, u, b); };
+    });
+  }).catch(function (err) { main.innerHTML = failBox(err); });
+}
+
+function userRow(u) {
+  var me = u.loginId === state.user.loginId;
+  return '<div class="user"><div style="min-width:0">' +
+    '<div style="font-weight:700;font-size:16px">' + esc(u.name) + ' ' + (u.role === 'admin' ? '<span class="badge admin">管理者</span> ' : '') +
+    (u.active ? (u.mustChange ? '<span class="badge norm">初回ログイン前</span>' : '') : '<span class="badge off">停止中</span>') + '</div>' +
+    '<div class="tiny" style="margin-top:2px">ID：' + esc(u.loginId) + '　メール：' + esc(u.email || '未登録') + '</div>' +
+    '<div class="tiny">最終ログイン：' + esc(u.lastLogin || 'なし') + '</div></div>' +
+    '<div class="acts">' +
+    '<button class="btn ghost small" data-act="edit" data-id="' + esc(u.loginId) + '">編集</button>' +
+    (u.active ? '<button class="btn ghost small" data-act="reset" data-id="' + esc(u.loginId) + '">パスワード再発行</button>' : '') +
+    (me ? '' : (u.active ? '<button class="btn danger small" data-act="stop" data-id="' + esc(u.loginId) + '">停止</button>'
+      : '<button class="btn ghost small" data-act="start" data-id="' + esc(u.loginId) + '">再開</button>')) +
+    '</div></div>';
+}
+
+function userAction(act, u, btn) {
+  if (act === 'edit') { userForm(u); return; }
+  if (act === 'reset') {
+    confirmBox('パスワードの再発行', u.name + ' さんの仮パスワードを新しく発行します。今のパスワードは使えなくなります。', '再発行する').then(function (ok) {
+      if (!ok) return;
+      call('apiAdminResetUserPassword', state.token, u.loginId).then(function (r) {
+        if (!r.ok) { toast(r.error); return; }
+        showTempPassword(u.name, u.loginId, r.tempPassword);
+      }).catch(function (err) { toast(err.message); });
+    });
+    return;
+  }
+  var stop = act === 'stop';
+  confirmBox(stop ? 'アカウントの停止' : 'アカウントの再開',
+    stop ? u.name + ' さんのアカウントを停止します。すぐにアプリが見られなくなります。' : u.name + ' さんのアカウントを再開します。',
+    stop ? '停止する' : '再開する').then(function (ok) {
+    if (!ok) return;
+    call('apiAdminSetActive', state.token, u.loginId, !stop).then(function (r) {
+      if (!r.ok) { toast(r.error); return; }
+      toast(stop ? '停止しました' : '再開しました'); adminTab();
+    }).catch(function (err) { toast(err.message); });
+  });
+}
+
+function userForm(u) {
+  var isNew = !u;
+  var m = openModal('<h3>' + (isNew ? 'アカウントを作る' : 'アカウントの編集') + '</h3><form id="uf" class="stack"><div id="um"></div>' +
+    '<div class="field"><label for="un">名前（画面に出る呼び名）</label><input class="input" id="un" value="' + esc(u ? u.name : '') + '" required></div>' +
+    (isNew ? '<div class="field"><label for="ui">ログインID（半角英数字3〜20文字）</label><input class="input" id="ui" autocapitalize="none" spellcheck="false" placeholder="例：yuki" required></div>' : '<p class="tiny" style="margin:0">ログインID：' + esc(u.loginId) + '（変更できません）</p>') +
+    '<div class="field"><label for="ue">メールアドレス（パスワードを忘れたとき用・任意）</label><input class="input" id="ue" type="email" value="' + esc(u ? u.email : '') + '"></div>' +
+    '<div class="field"><label for="ur">権限</label><select class="input" id="ur"><option value="staff">スタッフ</option><option value="admin"' + (u && u.role === 'admin' ? ' selected' : '') + '>管理者（すべて見られます）</option></select></div>' +
+    '<div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost small" id="uc">やめる</button><button class="btn small" id="us">' + (isNew ? '作成する' : '保存する') + '</button></div></form>');
+  $('#uc', m).onclick = closeModal;
+  $('#uf', m).onsubmit = function (e) {
+    e.preventDefault();
+    var data = { name: $('#un', m).value, email: $('#ue', m).value, role: $('#ur', m).value };
+    var btn = $('#us', m); busy(btn, true);
+    var p = isNew ? call('apiAdminCreateUser', state.token, Object.assign({ loginId: $('#ui', m).value }, data))
+      : call('apiAdminUpdateUser', state.token, u.loginId, data);
+    p.then(function (r) {
+      busy(btn, false);
+      if (!r.ok) { showMsg($('#um', m), r.error); return; }
+      if (isNew) showTempPassword(data.name, r.loginId, r.tempPassword);
+      else { closeModal(); toast('保存しました'); }
+      adminTab();
+    }).catch(function (err) { busy(btn, false); showMsg($('#um', m), err.message); });
+  };
+}
+
+function showTempPassword(name, loginId, temp) {
+  call('apiAdminAppUrl', state.token).then(function (url) {
+    var text = name + ' さん\n' + APP_NAME + ' のアプリのログイン情報です。\n\nURL：' + url + '\nログインID：' + loginId + '\n仮パスワード：' + temp +
+      '\n\n初めてログインしたときに、自分のパスワードに変更してください。\nURLを開いたら「ホーム画面に追加」をしておくと便利です。';
+    var m = openModal('<h3>ログイン情報</h3><p class="muted" style="margin:0;line-height:1.7">この内容をLINEなどで本人に送ってください。仮パスワードはこの画面を閉じると二度と表示されません。</p>' +
+      '<div class="copybox">' + esc(text) + '</div><button class="btn block" id="cp">コピーする</button><button class="btn ghost block" id="cl">閉じる</button>');
+    $('#cp', m).onclick = function () { copyText(text); };
+    $('#cl', m).onclick = closeModal;
+  });
+}
+
+/* ---------- お知らせ ---------- */
+function adminNotices(main) {
+  call('apiAdminNotices', state.token).then(function (list) {
+    if (!list) return;
+    var h = '<h1>お知らせ</h1><section class="card"><form id="nf" class="stack"><div id="nm"></div>' +
+      '<div class="field"><label for="nt">スタッフへのお知らせ</label><textarea class="input" id="nt" maxlength="500" placeholder="例：金曜は団体予約あり。19時までに準備をお願いします。" required></textarea></div>' +
+      '<label class="check"><input type="checkbox" id="ni">重要マークを付ける</label>' +
+      '<div><button class="btn" id="ns">投稿する</button></div></form></section>';
+    h += '<section class="card"><h2>投稿したお知らせ</h2>' + (list.length ? '' : '<p class="muted" style="margin:10px 0 0">まだありません。</p>') +
+      list.map(function (n) {
+        return '<div class="user"><div style="min-width:0;flex:1"><div class="notice"><span class="badge ' + (n.important ? 'imp">重要' : 'norm">連絡') + '</span><div class="tx">' + esc(n.text) + '</div></div>' +
+          '<div class="tiny">' + esc(n.createdAt) + '　' + esc(n.author) + '</div></div>' +
+          '<div class="acts"><button class="btn danger small" data-del="' + esc(n.id) + '">削除</button></div></div>';
+      }).join('') + '</section><p class="tiny" style="margin:0">スタッフのホームには新しい順に5件まで表示されます。</p>';
+    main.innerHTML = h;
+    $('#nf').onsubmit = function (e) {
+      e.preventDefault();
+      var btn = $('#ns'); busy(btn, true);
+      call('apiAdminAddNotice', state.token, { text: $('#nt').value, important: $('#ni').checked }).then(function (r) {
+        busy(btn, false);
+        if (!r.ok) { showMsg($('#nm'), r.error); return; }
+        toast('投稿しました'); adminTab();
+      }).catch(function (err) { busy(btn, false); showMsg($('#nm'), err.message); });
+    };
+    Array.prototype.forEach.call(main.querySelectorAll('[data-del]'), function (b) {
+      b.onclick = function () {
+        confirmBox('お知らせの削除', 'このお知らせを削除します。', '削除する').then(function (ok) {
+          if (!ok) return;
+          call('apiAdminDeleteNotice', state.token, b.dataset.del).then(function () { toast('削除しました'); adminTab(); }).catch(function (err) { toast(err.message); });
+        });
+      };
+    });
+  }).catch(function (err) { main.innerHTML = failBox(err); });
+}
+
+/* ---------- 設定 ---------- */
+var SHOW_ITEMS = [
+  ['show_sales', '1日の売上'],
+  ['show_visitsCount', '来店数（新規／常連）'],
+  ['show_monthTotal', '今月の累計売上'],
+  ['show_target', '今月の目標達成率（利益目標に対して）'],
+  ['show_dailyTarget', '今日の目標・その日の目標（利益目標の金額）'],
+  ['show_members', '出勤メンバー'],
+  ['show_visitList', '来店したお客様の一覧（名前・人数・ボトル）'],
+  ['show_visitAmount', '└ お客様ごとの金額'],
+];
+
+function adminSettings(main) {
+  call('apiAdminSettings', state.token).then(function (st) {
+    if (!st) return;
+    var h = '<h1>設定</h1><form id="sf" class="stack"><div id="sm"></div>' +
+      '<section class="card stack"><h2>売上ファイル</h2>' +
+      '<p class="muted" style="margin:0">今の読み込み元：<b>' + esc(st.sourceName || '未設定') + '</b></p>' +
+      '<div class="field"><label for="src">変更する場合は、Googleドライブで売上管理ファイルを開いたときのURLを貼り付け</label>' +
+      '<input class="input" id="src" placeholder="https://docs.google.com/…" autocomplete="off"></div>' +
+      '<p class="tiny" style="margin:0;line-height:1.7">1時間ごとにファイルの更新を確認し、更新されていれば自動で読み込みます。</p></section>' +
+      '<section class="card stack"><h2>目標ファイル</h2>' +
+      '<p class="muted" style="margin:0">今の読み込み元：<b>' + esc(st.targetName || '未設定') + '</b>' + (st.targetSync ? '（' + esc(st.targetSync) + ' 読み込み）' : '') + '</p>' +
+      '<div class="field"><label for="tsrc">変更する場合は、Googleドライブで目標計算.xlsx を開いたときのURLを貼り付け</label>' +
+      '<input class="input" id="tsrc" placeholder="https://docs.google.com/…" autocomplete="off"></div>' +
+      '<p class="tiny" style="margin:0;line-height:1.7">損益分岐・利益目標・日ごとの目標は、このファイルから読み込みます。費用が入っているので、スタッフと共有しないフォルダに置いてください。</p></section>' +
+      '<section class="card"><h2>スタッフ画面に表示する項目</h2><p class="tiny" style="margin:6px 0 4px">現金・カードの内訳、手数料、税抜売上、担当者別の売上、費用、損益分岐は、スタッフ画面には出ません。</p>' +
+      SHOW_ITEMS.map(function (s) { return '<label class="check"><input type="checkbox" data-k="' + s[0] + '"' + (st[s[0]] ? ' checked' : '') + '>' + s[1] + '</label>'; }).join('') +
+      '</section><div><button class="btn" id="ss">保存する</button></div></form>';
+    main.innerHTML = h;
+    $('#sf').onsubmit = function (e) {
+      e.preventDefault();
+      var data = { source: $('#src').value, targetSource: $('#tsrc').value };
+      Array.prototype.forEach.call(main.querySelectorAll('[data-k]'), function (c) { data[c.dataset.k] = c.checked; });
+      var btn = $('#ss'); busy(btn, true, (data.source || data.targetSource) ? '保存して読み込み中…' : '保存中…');
+      call('apiAdminSaveSettings', state.token, data).then(function (r) {
+        busy(btn, false);
+        if (!r.ok) { showMsg($('#sm'), r.error); window.scrollTo(0, 0); return; }
+        var fails = [r.sync, r.targetSync].filter(function (x) { return x && !x.ok; });
+        if (fails.length) { showMsg($('#sm'), '保存しましたが、読み込みに失敗しました：' + fails.map(function (x) { return x.error; }).join(' / ')); window.scrollTo(0, 0); return; }
+        toast((r.sync || r.targetSync) ? '保存して読み込みました' : '保存しました');
+        adminTab();
+      }).catch(function (err) { busy(btn, false); showMsg($('#sm'), err.message); });
+    };
+  }).catch(function (err) { main.innerHTML = failBox(err); });
+}
+
+start();
+</script>
+</body>
+</html>
