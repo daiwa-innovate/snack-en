@@ -181,6 +181,8 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
 <div id="app"><div class="loading">読み込み中…</div></div>
 <div id="modal-root"></div>
 
+<script src="pos.js?v=1"></script>
+<script src="admin-pos.js?v=1"></script>
 <script>
 var CONF = window.EN_CONFIG || {};
 var API_URL = CONF.apiUrl || '';
@@ -212,7 +214,10 @@ var ICON = {
   cal: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
   menu: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
   left: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
-  right: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
+  right: '<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  ticket: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>',
+  people: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5.5a3 3 0 0 1 0 5M18 14.5c1.8.8 3 2.6 3 5.5"/></svg>',
+  yen: '<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 7.5L12 12l3.5-4.5M12 12v5M9 13h6M9 15.5h6"/></svg>'
 };
 
 /* ---------- サーバー呼び出し ---------- */
@@ -282,7 +287,23 @@ function start() {
 }
 function remember(token) { store('en_token', token); }
 function enterApp() { if (state.user.role === 'admin') renderAdmin(); else renderStaff(); }
-function logoutLocal(msg) { store('en_token', null); state.token = null; state.user = null; closeModal(); renderLogin(msg); }
+function logoutLocal(msg) { store('en_token', null); state.token = null; state.user = null; closeModal(); if (window.posStop) posStop(); renderLogin(msg); }
+/** この端末の番号（店頭用アカウントの端末登録に使う。ブラウザに保存する） */
+function deviceId() {
+  var d = load('en_device');
+  if (!d || !/^[0-9a-f]{32}$/.test(d)) {
+    d = '';
+    var a = (window.crypto && crypto.getRandomValues) ? crypto.getRandomValues(new Uint8Array(16)) : null;
+    for (var i = 0; i < 16; i++) { var b = a ? a[i] : Math.floor(Math.random() * 256); d += (b < 16 ? '0' : '') + b.toString(16); }
+    store('en_device', d);
+  }
+  return d;
+}
+function deviceLabel() {
+  var u = navigator.userAgent || '';
+  var k = /iPad/.test(u) ? 'iPad' : /iPhone/.test(u) ? 'iPhone' : /Android/.test(u) ? 'Android' : /Windows/.test(u) ? 'Windows PC' : /Mac/.test(u) ? 'Mac' : '端末';
+  return k + '（' + new Date().toLocaleDateString('ja-JP') + ' 登録）';
+}
 function logout() { var t = state.token; logoutLocal(); if (t) call('apiLogout', t).catch(function () {}); }
 
 /* =========================================================
@@ -296,6 +317,7 @@ function renderLogin(msg) {
     '<div id="m">' + (msg ? '<div class="msg err">' + esc(msg) + '</div>' : '') + '</div>' +
     '<div class="field"><label for="id">ログインID</label><input class="input" id="id" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>' +
     '<div class="field"><label for="pw">パスワード</label><input class="input" id="pw" type="password" name="password" autocomplete="current-password" required></div>' +
+    '<div class="field hidden" id="dvf"><label for="dvc">端末の登録コード（6けた）</label><input class="input" id="dvc" inputmode="numeric" autocomplete="off" placeholder="管理者に教えてもらったコード"></div>' +
     '<button class="btn block" id="go">ログイン</button>' +
     '</form>' +
     '<div style="text-align:center"><button class="link" id="forgot">パスワードを忘れた方</button></div>'));
@@ -303,9 +325,9 @@ function renderLogin(msg) {
   $('#f').onsubmit = function (e) {
     e.preventDefault();
     var btn = $('#go'); busy(btn, true, 'ログイン中…');
-    call('apiLogin', $('#id').value, $('#pw').value).then(function (r) {
+    call('apiLogin', $('#id').value, $('#pw').value, deviceId(), $('#dvc').value.trim(), deviceLabel()).then(function (r) {
       busy(btn, false);
-      if (!r.ok) { showMsg($('#m'), r.error); return; }
+      if (!r.ok) { if (r.needDevice) $('#dvf').classList.remove('hidden'); showMsg($('#m'), r.error); return; }
       state.token = r.token; state.user = r.user; remember(r.token);
       if (r.user.role === 'admin') call('apiMe', r.token, location.origin + location.pathname).catch(function () {});
       if (r.user.mustChange) renderChange(true); else enterApp();
@@ -396,21 +418,28 @@ function accountMenu() {
 /* =========================================================
  * スタッフ画面
  * ======================================================= */
+/** 下のメニュー：ホーム／伝票／顧客／シフト／歩合（店頭用アカウントには「歩合」を出さない） */
+function staffTabs() {
+  var t = [['home', ICON.home, 'ホーム'], ['pos', ICON.ticket, '伝票'], ['cust', ICON.people, '顧客'], ['shift', ICON.cal, 'シフト']];
+  if (state.user && state.user.role !== 'store') t.push(['pay', ICON.yen, '歩合']);
+  return t;
+}
 function renderStaff() {
+  var tabs = staffTabs();
+  if (!tabs.some(function (t) { return t[0] === state.staffTab; })) state.staffTab = 'home';
   render(
     '<div class="staff">' +
     '<header class="s-head"><div class="brand">' + esc(APP_NAME) + '</div>' +
     '<button class="icon-btn" id="menu" aria-label="メニュー">' + ICON.menu + '</button></header>' +
     '<main class="s-main" id="s-main"><div class="loading">読み込み中…</div></main>' +
-    '<nav class="s-nav" aria-label="メインメニュー"><div class="s-nav-in">' +
-    '<button data-tab="home">' + ICON.home + 'ホーム</button>' +
-    '<button data-tab="manual">' + ICON.book + 'マニュアル</button>' +
-    '<button data-tab="shift">' + ICON.cal + 'シフト</button>' +
+    '<nav class="s-nav" aria-label="メインメニュー"><div class="s-nav-in" style="grid-template-columns:repeat(' + tabs.length + ',minmax(0,1fr))">' +
+    tabs.map(function (t) { return '<button data-tab="' + t[0] + '">' + t[1] + t[2] + '</button>'; }).join('') +
     '</div></nav></div>');
   $('#menu').onclick = accountMenu;
   Array.prototype.forEach.call(document.querySelectorAll('.s-nav button'), function (b) {
     b.onclick = function () { state.staffTab = b.dataset.tab; staffTab(); };
   });
+  if (window.posBackground) posBackground();   // 時間のお知らせ・伝票の一覧を、どの画面でも裏で更新する
   staffTab();
 }
 
@@ -420,8 +449,13 @@ function staffTab() {
     if (b.dataset.tab === state.staffTab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
   var main = $('#s-main');
-  if (state.staffTab === 'manual' || state.staffTab === 'shift') {
-    var t = state.staffTab === 'manual' ? 'マニュアル' : 'シフト';
+  var staffEl = document.querySelector('.staff');
+  if (staffEl && state.staffTab !== 'pos') { staffEl.classList.remove('wide'); staffEl.classList.remove('tk-open'); }
+  main.onclick = null;
+  if (state.staffTab === 'pos') { posScreen(main); return; }
+  if (state.staffTab === 'cust') { custScreen(main); return; }
+  if (state.staffTab === 'shift' || state.staffTab === 'pay') {
+    var t = state.staffTab === 'shift' ? 'シフト' : '歩合';
     main.innerHTML = '<h1 style="margin:4px 0 0;font-size:22px">' + t + '</h1><div class="card"><p class="muted" style="margin:0;line-height:1.8">' + t + 'は準備中です。次の更新で使えるようになります。</p></div>';
     return;
   }
@@ -519,7 +553,7 @@ function drawStaffHome(d) {
 /* =========================================================
  * 管理者画面
  * ======================================================= */
-var ADMIN_TABS = [['dash', 'ダッシュボード'], ['pl', '月次収支'], ['cal', '目標・カレンダー'], ['users', 'スタッフ管理'], ['notices', 'お知らせ'], ['settings', '設定']];
+var ADMIN_TABS = [['dash', 'ダッシュボード'], ['pos', '伝票・売上'], ['pl', '月次収支'], ['cal', '目標・カレンダー'], ['users', 'スタッフ管理'], ['master', 'マスタ設定'], ['notices', 'お知らせ'], ['settings', '設定']];
 
 function renderAdmin() {
   render(
@@ -551,7 +585,7 @@ function adminTab() {
   });
   var main = $('#a-main');
   main.innerHTML = '<div class="loading">読み込み中…</div>';
-  ({ dash: adminDash, pl: adminPL, cal: adminCalendar, users: adminUsers, notices: adminNotices, settings: adminSettings })[state.adminTab](main);
+  ({ dash: adminDash, pos: adminPos, pl: adminPL, cal: adminCalendar, users: adminUsers, master: adminMaster, notices: adminNotices, settings: adminSettings })[state.adminTab](main);
 }
 
 /* ---------- 目標・カレンダー ---------- */
@@ -838,7 +872,7 @@ function adminUsers(main) {
 function userRow(u) {
   var me = u.loginId === state.user.loginId;
   return '<div class="user"><div style="min-width:0">' +
-    '<div style="font-weight:700;font-size:16px">' + esc(u.name) + ' ' + (u.role === 'admin' ? '<span class="badge admin">管理者</span> ' : '') +
+    '<div style="font-weight:700;font-size:16px">' + esc(u.name) + ' ' + (u.role === 'admin' ? '<span class="badge admin">管理者</span> ' : u.role === 'store' ? '<span class="badge norm">店頭用</span> ' : '') +
     (u.active ? (u.mustChange ? '<span class="badge norm">初回ログイン前</span>' : '') : '<span class="badge off">停止中</span>') + '</div>' +
     '<div class="tiny" style="margin-top:2px">ID：' + esc(u.loginId) + '　メール：' + esc(u.email || '未登録') + '</div>' +
     '<div class="tiny">最終ログイン：' + esc(u.lastLogin || 'なし') + '</div></div>' +
@@ -880,7 +914,7 @@ function userForm(u) {
     '<div class="field"><label for="un">名前（画面に出る呼び名）</label><input class="input" id="un" value="' + esc(u ? u.name : '') + '" required></div>' +
     (isNew ? '<div class="field"><label for="ui">ログインID（半角英数字3〜20文字）</label><input class="input" id="ui" autocapitalize="none" spellcheck="false" placeholder="例：yuki" required></div>' : '<p class="tiny" style="margin:0">ログインID：' + esc(u.loginId) + '（変更できません）</p>') +
     '<div class="field"><label for="ue">メールアドレス（パスワードを忘れたとき用・任意）</label><input class="input" id="ue" type="email" value="' + esc(u ? u.email : '') + '"></div>' +
-    '<div class="field"><label for="ur">権限</label><select class="input" id="ur"><option value="staff">スタッフ</option><option value="admin"' + (u && u.role === 'admin' ? ' selected' : '') + '>管理者（すべて見られます）</option></select></div>' +
+    '<div class="field"><label for="ur">権限</label><select class="input" id="ur"><option value="staff">スタッフ（個人）</option><option value="store"' + (u && u.role === 'store' ? ' selected' : '') + '>店頭用（共通・登録した端末だけ）</option><option value="admin"' + (u && u.role === 'admin' ? ' selected' : '') + '>管理者（すべて見られます）</option></select></div>' +
     '<div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost small" id="uc">やめる</button><button class="btn small" id="us">' + (isNew ? '作成する' : '保存する') + '</button></div></form>');
   $('#uc', m).onclick = closeModal;
   $('#uf', m).onsubmit = function (e) {
