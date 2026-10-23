@@ -182,7 +182,8 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
 <div id="modal-root"></div>
 
 <script src="pos.js?v=1"></script>
-<script src="admin-pos.js?v=1"></script>
+<script src="admin-pos.js?v=2"></script>
+<script src="bonus.js?v=1"></script>
 <script>
 var CONF = window.EN_CONFIG || {};
 var API_URL = CONF.apiUrl || '';
@@ -454,9 +455,9 @@ function staffTab() {
   main.onclick = null;
   if (state.staffTab === 'pos') { posScreen(main); return; }
   if (state.staffTab === 'cust') { custScreen(main); return; }
-  if (state.staffTab === 'shift' || state.staffTab === 'pay') {
-    var t = state.staffTab === 'shift' ? 'シフト' : '歩合';
-    main.innerHTML = '<h1 style="margin:4px 0 0;font-size:22px">' + t + '</h1><div class="card"><p class="muted" style="margin:0;line-height:1.8">' + t + 'は準備中です。次の更新で使えるようになります。</p></div>';
+  if (state.staffTab === 'pay') { bonusScreen(main); return; }
+  if (state.staffTab === 'shift') {
+    main.innerHTML = '<h1 style="margin:4px 0 0;font-size:22px">シフト</h1><div class="card"><p class="muted" style="margin:0;line-height:1.8">シフトは準備中です。次の更新で使えるようになります。</p></div>';
     return;
   }
   loadStaffHome();
@@ -553,7 +554,7 @@ function drawStaffHome(d) {
 /* =========================================================
  * 管理者画面
  * ======================================================= */
-var ADMIN_TABS = [['dash', 'ダッシュボード'], ['pos', '伝票・売上'], ['pl', '月次収支'], ['cal', '目標・カレンダー'], ['users', 'スタッフ管理'], ['master', 'マスタ設定'], ['notices', 'お知らせ'], ['settings', '設定']];
+var ADMIN_TABS = [['dash', 'ダッシュボード'], ['pos', '伝票・売上'], ['bonus', '歩合'], ['pl', '月次収支'], ['cal', '目標・カレンダー'], ['users', 'スタッフ管理'], ['master', 'マスタ設定'], ['notices', 'お知らせ'], ['settings', '設定']];
 
 function renderAdmin() {
   render(
@@ -585,7 +586,7 @@ function adminTab() {
   });
   var main = $('#a-main');
   main.innerHTML = '<div class="loading">読み込み中…</div>';
-  ({ dash: adminDash, pos: adminPos, pl: adminPL, cal: adminCalendar, users: adminUsers, master: adminMaster, notices: adminNotices, settings: adminSettings })[state.adminTab](main);
+  ({ dash: adminDash, pos: adminPos, bonus: adminBonus, pl: adminPL, cal: adminCalendar, users: adminUsers, master: adminMaster, notices: adminNotices, settings: adminSettings })[state.adminTab](main);
 }
 
 /* ---------- 目標・カレンダー ---------- */
