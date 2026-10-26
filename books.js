@@ -250,31 +250,42 @@
   window.adminCustomers = function (main) {
     call('apiAdminCustAll', state.token).then(function (d) {
       if (!d) return;
-      var q = C.q.trim().toLowerCase();
-      var list = d.customers.filter(function (c) { return !q || (c.name + ' ' + c.nickname).toLowerCase().indexOf(q) >= 0; })
-        .sort(function (a, b) { return a.lastVisit < b.lastVisit ? 1 : a.lastVisit > b.lastVisit ? -1 : (a.name < b.name ? -1 : 1); });
+      /* 検索欄は作り直さない（日本語入力の変換の途中で作り直すと、文字が壊れるため）。表の部分だけを描き直す。 */
+      function tableHTML() {
+        var q = C.q.trim().toLowerCase();
+        var list = d.customers.filter(function (c) { return !q || (c.name + ' ' + c.nickname).toLowerCase().indexOf(q) >= 0; })
+          .sort(function (a, b) { return a.lastVisit < b.lastVisit ? 1 : a.lastVisit > b.lastVisit ? -1 : (a.name < b.name ? -1 : 1); });
+        return '<section class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th></th><th>名前</th><th>呼び名</th><th class="r">来店</th><th>前回</th><th class="r">合計金額</th><th>担当</th><th>電話</th><th></th></tr></thead><tbody>' +
+          list.slice(0, 200).map(function (c) {
+            return '<tr><td><input type="checkbox" data-pick="' + esc(c.id) + '"' + (C.pick.indexOf(c.id) >= 0 ? ' checked' : '') + ' aria-label="まとめる相手に選ぶ" style="width:22px;height:22px;accent-color:var(--accent)"></td><td><b>' + esc(c.name) + '</b></td><td>' + esc(c.nickname) + '</td><td class="r">' + c.visits + '</td><td>' + esc(c.lastVisit.slice(5).replace('-', '/')) + '</td><td class="r">' + yen(c.total) + '</td><td>' + esc(c.staffId) + '</td><td>' + esc(c.phone) + '</td>' +
+              '<td class="r"><button class="btn ghost small" data-edit="' + esc(c.id) + '">編集</button></td></tr>';
+          }).join('') + '</tbody></table></div>' + (list.length > 200 ? '<div class="tiny">ほか ' + (list.length - 200) + '人（名前で絞り込めます）</div>' : '') + '</section>';
+      }
       var h = '<div class="row" style="flex-wrap:wrap"><h1>顧客管理</h1><button class="btn ghost small" id="cu-imp">過去の来店明細から顧客を作る</button></div>' +
         '<p class="muted" style="margin:0;line-height:1.7">同じ人が別の名前で入っているとき（「宮崎さん」「宮崎様」など）は、2人にチェックを入れて「まとめる」を押します。来店履歴とボトルが、1人にまとまります。</p>' +
         '<div class="row" style="gap:10px;flex-wrap:wrap"><input class="input" id="cu-q" type="search" placeholder="名前で探す" value="' + esc(C.q) + '" style="flex:1;min-width:180px" aria-label="顧客を探す">' +
         '<button class="btn small" id="cu-merge"' + (C.pick.length === 2 ? '' : ' disabled') + '>選んだ2人をまとめる</button></div>' +
         '<div class="tiny">' + d.customers.length + '人' + (C.pick.length ? '　チェック中：' + C.pick.length + '人（まとめる2人を選びます）' : '') + '</div>';
-      h += '<section class="card"><div class="tbl-wrap"><table class="tbl"><thead><tr><th></th><th>名前</th><th>呼び名</th><th class="r">来店</th><th>前回</th><th class="r">合計金額</th><th>担当</th><th>電話</th><th></th></tr></thead><tbody>' +
-        list.slice(0, 200).map(function (c) {
-          return '<tr><td><input type="checkbox" data-pick="' + esc(c.id) + '"' + (C.pick.indexOf(c.id) >= 0 ? ' checked' : '') + ' aria-label="まとめる相手に選ぶ" style="width:22px;height:22px;accent-color:var(--accent)"></td><td><b>' + esc(c.name) + '</b></td><td>' + esc(c.nickname) + '</td><td class="r">' + c.visits + '</td><td>' + esc(c.lastVisit.slice(5).replace('-', '/')) + '</td><td class="r">' + yen(c.total) + '</td><td>' + esc(c.staffId) + '</td><td>' + esc(c.phone) + '</td>' +
-            '<td class="r"><button class="btn ghost small" data-edit="' + esc(c.id) + '">編集</button></td></tr>';
-        }).join('') + '</tbody></table></div>' + (list.length > 200 ? '<div class="tiny">ほか ' + (list.length - 200) + '人（名前で絞り込めます）</div>' : '') + '</section>';
+      h += '<div id="cu-res">' + tableHTML() + '</div>';
       main.innerHTML = h;
       var byId = {}; d.customers.forEach(function (c) { byId[c.id] = c; });
-      var inp = $('#cu-q');
-      inp.oninput = function () { C.q = inp.value; var pos = inp.selectionStart; adminCustomers(main); setTimeout(function () { var n = $('#cu-q'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }, 400); };
-      Array.prototype.forEach.call(main.querySelectorAll('[data-pick]'), function (c) {
-        c.onchange = function () {
-          var i = C.pick.indexOf(c.dataset.pick);
-          if (c.checked && i < 0) { if (C.pick.length >= 2) { c.checked = false; toast('まとめるのは2人ずつです'); return; } C.pick.push(c.dataset.pick); }
-          else if (!c.checked && i >= 0) C.pick.splice(i, 1);
-          $('#cu-merge').disabled = C.pick.length !== 2;
-        };
-      });
+      function bindTable() {
+        Array.prototype.forEach.call(main.querySelectorAll('[data-pick]'), function (c) {
+          c.onchange = function () {
+            var i = C.pick.indexOf(c.dataset.pick);
+            if (c.checked && i < 0) { if (C.pick.length >= 2) { c.checked = false; toast('まとめるのは2人ずつです'); return; } C.pick.push(c.dataset.pick); }
+            else if (!c.checked && i >= 0) C.pick.splice(i, 1);
+            $('#cu-merge').disabled = C.pick.length !== 2;
+          };
+        });
+        Array.prototype.forEach.call(main.querySelectorAll('[data-edit]'), function (b) { b.onclick = function () { custEdit(byId[b.dataset.edit]); }; });
+      }
+      bindTable();
+      var inp = $('#cu-q'), composing = false, last = C.q;
+      var refresh = function () { if (composing || inp.value === last) return; last = inp.value; C.q = last; $('#cu-res').innerHTML = tableHTML(); bindTable(); };
+      inp.addEventListener('compositionstart', function () { composing = true; });
+      inp.addEventListener('compositionend', function () { composing = false; refresh(); });
+      inp.addEventListener('input', function (e) { if (e.isComposing) return; refresh(); });
       $('#cu-merge').onclick = function () {
         var a = byId[C.pick[0]], b = byId[C.pick[1]];
         if (!a || !b) return;
@@ -302,7 +313,6 @@
           }).catch(function (err) { busy(b, false); toast(err.message); });
         });
       };
-      Array.prototype.forEach.call(main.querySelectorAll('[data-edit]'), function (b) { b.onclick = function () { custEdit(byId[b.dataset.edit]); }; });
     }).catch(function (err) { main.innerHTML = failBox(err); });
   };
 

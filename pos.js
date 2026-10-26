@@ -1006,17 +1006,19 @@
   function nameModal() {
     var t = POS.tk;
     loadCusts(function (list) {
-      function body(q) {
+      /* 入力欄は作り直さない（日本語入力の変換の途中で作り直すと、文字が壊れるため）。変わる部分（一覧とボタン）だけを描き直す。 */
+      function results(q) {
         var rows = list.filter(function (c) { return matches(c, q); }).slice(0, 30);
-        return mHead('お客様') + '<div class="field"><label for="nm-q">名前（探す／新しく入れる）</label><input class="input" id="nm-q" value="' + esc(q) + '" placeholder="例：宮崎" autocomplete="off"></div>' +
-          '<div class="stack" style="gap:8px;max-height:42vh;overflow:auto">' +
+        return '<div class="stack" style="gap:8px;max-height:42vh;overflow:auto">' +
           rows.map(function (c) { return '<button class="cust" data-m="pick" data-id="' + esc(c.id) + '"><div><div class="nm">' + esc(c.name) + '</div><div class="sb">' + esc(c.nickname) + (c.visits ? '　来店' + c.visits + '回' : '') + (c.bottles ? '　キープ' + c.bottles + '本' : '') + '</div></div></button>'; }).join('') +
           (!rows.length ? '<div class="tiny">一致するお客様はいません。</div>' : '') + '</div>' +
           (q.trim() ? '<button class="btn block" data-m="reg">「' + esc(q.trim()) + '」さんをお客様として登録して使う</button><button class="btn ghost block" data-m="free">登録せず、この名前だけ伝票に書く</button>' : '') +
           '<button class="btn ghost block" data-m="new">名前が分からない（新規）</button>' + closeBtn('やめる');
       }
-      var q = '';
-      var mm = modal(body(q), function (b, done, el) {
+      function body() {
+        return mHead('お客様') + '<div class="field"><label for="nm-q">名前（探す／新しく入れる）</label><input class="input" id="nm-q" placeholder="例：宮崎" autocomplete="off"></div><div id="nm-res" class="stack" style="gap:10px">' + results('') + '</div>';
+      }
+      var mm = modal(body(), function (b, done, el) {
         var a = b.dataset.m, val = (el.querySelector('#nm-q') || {}).value || '';
         if (a === 'pick') {
           var c = list.filter(function (x) { return x.id === b.dataset.id; })[0];
@@ -1035,17 +1037,12 @@
         } else if (a === 'free') { send(t.id, { op: 'set', k: 'name', v: val.trim() }); send(t.id, { op: 'set', k: 'customerId', v: '' }); done(); }
         else if (a === 'new') { send(t.id, { op: 'set', k: 'name', v: '新規' }); send(t.id, { op: 'set', k: 'customerId', v: '' }); send(t.id, { op: 'set', k: 'isNew', v: true }); done(); }
       });
-      function bindInput() {
-        var inp = mm.el.querySelector('#nm-q');
-        inp.addEventListener('input', function () {
-          q = inp.value;
-          var pos = inp.selectionStart;
-          mm.el.innerHTML = body(q);
-          var n2 = mm.el.querySelector('#nm-q'); n2.focus(); n2.setSelectionRange(pos, pos);
-          bindInput();
-        });
-      }
-      bindInput();
+      var inp = mm.el.querySelector('#nm-q');
+      var composing = false, last = '';
+      function refresh() { if (composing || inp.value === last) return; last = inp.value; mm.el.querySelector('#nm-res').innerHTML = results(last); }
+      inp.addEventListener('compositionstart', function () { composing = true; });
+      inp.addEventListener('compositionend', function () { composing = false; refresh(); });
+      inp.addEventListener('input', function (e) { if (e.isComposing) return; refresh(); });
     });
   }
 
@@ -1152,27 +1149,28 @@
     main.innerHTML = '<div class="loading">読み込み中…</div>';
     ensureInit(function () { loadCusts(function () { drawCust(main); }); });
   };
-  function drawCust(main) {
+  /** 検索結果の部分だけの表示（検索欄は作り直さない。日本語入力の変換の途中で作り直すと、文字が壊れるため） */
+  function custListHTML() {
     var list = (POS.custs || []).filter(function (c) { return matches(c, C.q); });
     list.sort(function (a, b) { return a.lastVisit < b.lastVisit ? 1 : a.lastVisit > b.lastVisit ? -1 : (a.name < b.name ? -1 : 1); });
-    var h = '<h1 style="margin:4px 0 0;font-size:22px">顧客</h1>' +
-      '<div class="field"><input class="input" id="c-q" type="search" placeholder="名前・呼び名で探す" value="' + esc(C.q) + '" autocomplete="off" aria-label="顧客を探す"></div>';
+    var h = '';
     if (!list.length) h += '<div class="empty">' + (C.q ? '一致するお客様はいません。' : 'お客様がまだ登録されていません。') + '</div>';
-    h += '<div class="stack" style="gap:8px" id="c-list">' + list.slice(0, 60).map(function (c) {
+    return h + '<div class="stack" style="gap:8px" id="c-list">' + list.slice(0, 60).map(function (c) {
       return '<button class="cust" data-c="' + esc(c.id) + '"><div><div class="nm">' + esc(c.name) + (c.nickname ? '<span class="tiny">　' + esc(c.nickname) + '</span>' : '') + '</div>' +
         '<div class="sb">' + (c.visits ? '来店' + c.visits + '回' : 'まだ来店なし') + (c.lastVisit ? '　前回 ' + esc(c.lastVisit.slice(5).replace('-', '/')) : '') + (c.bottles ? '　キープ' + c.bottles + '本' : '') + '</div></div><span class="tiny">›</span></button>';
-    }).join('') + (list.length > 60 ? '<div class="tiny" style="text-align:center">ほか ' + (list.length - 60) + '名（名前で絞り込めます）</div>' : '') + '</div>' +
-      '<button class="btn fab" id="c-new">＋ お客様を登録</button>';
-    main.innerHTML = h;
-    var inp = $('#c-q');
-    inp.oninput = function () {
-      C.q = inp.value;
-      var pos = inp.selectionStart;
-      drawCust(main);
-      var n = $('#c-q'); n.focus(); n.setSelectionRange(pos, pos);
-    };
+    }).join('') + (list.length > 60 ? '<div class="tiny" style="text-align:center">ほか ' + (list.length - 60) + '名（名前で絞り込めます）</div>' : '') + '</div>';
+  }
+  function drawCust(main) {
+    main.innerHTML = '<h1 style="margin:4px 0 0;font-size:22px">顧客</h1>' +
+      '<div class="field"><input class="input" id="c-q" type="search" placeholder="名前・呼び名で探す" value="' + esc(C.q) + '" autocomplete="off" aria-label="顧客を探す"></div>' +
+      '<div id="c-res" class="stack" style="gap:14px">' + custListHTML() + '</div><button class="btn fab" id="c-new">＋ お客様を登録</button>';
+    var inp = $('#c-q'), res = $('#c-res'), composing = false, last = C.q;
+    var refresh = function () { if (composing || inp.value === last) return; last = inp.value; C.q = last; res.innerHTML = custListHTML(); };
+    inp.addEventListener('compositionstart', function () { composing = true; });
+    inp.addEventListener('compositionend', function () { composing = false; refresh(); });
+    inp.addEventListener('input', function (e) { if (e.isComposing) return; refresh(); });
+    res.onclick = function (e) { var b = e.target.closest('[data-c]'); if (b) custDetail(b.dataset.c, main); };
     $('#c-new').onclick = function () { custForm(null, function () { POS.custAt = 0; loadCusts(function () { drawCust(main); }); }); };
-    Array.prototype.forEach.call(main.querySelectorAll('[data-c]'), function (b) { b.onclick = function () { custDetail(b.dataset.c, main); }; });
   }
   function custDetail(id, main) {
     api('apiCustGet', id).then(function (r) {
