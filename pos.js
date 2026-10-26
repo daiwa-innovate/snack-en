@@ -59,6 +59,7 @@
     '.mi .n{font-size:15px;font-weight:700;line-height:1.35;word-break:break-word}' +
     '.mi .p{font-size:14px;color:var(--sub)}' +
     '.mi.on{border:2px solid var(--accent);background:#FBF3F4}' +
+    '.mi.other{border:1.5px dashed #B9AEA3;background:#FAF7F3}.mi.other .n{color:var(--sub)}' +
     '.mi .bd{position:absolute;top:6px;right:8px;background:var(--accent);color:#fff;border-radius:12px;min-width:30px;height:26px;padding:0 8px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center}' +
     '.mi .mn{position:absolute;bottom:6px;right:6px;width:44px;height:44px;border-radius:22px;border:1px solid #D6CEC5;background:#fff;font-size:22px;display:flex;align-items:center;justify-content:center}' +
     '.sub-h{font-size:13px;color:var(--sub);margin:6px 2px 0;font-weight:700}' +
@@ -133,12 +134,14 @@
   }
 
   /* ---------- 金額の先読み計算（サーバーと同じ式） ---------- */
+  /** 延長の人数。決めていなければ、そのグループの全員（途中で帰った人・増えた人は、＋−で直す）。 */
+  function extCount(e, party) { return e.count != null && e.count !== '' ? e.count : (party ? party.count : 0); }
   function calc(t) {
     var people = 0, byId = {};
     t.parties.forEach(function (p) { people += p.count; byId[p.id] = p; });
     var sys = t.sys ? t.sys.price * people : 0;
     var lines = 0; t.lines.forEach(function (l) { if (!l.void) lines += l.price * l.qty; });
-    var ext = 0; t.exts.forEach(function (e) { if (!e.void) ext += e.price * (byId[e.partyId] ? byId[e.partyId].count : 0); });
+    var ext = 0; t.exts.forEach(function (e) { if (!e.void) ext += e.price * extCount(e, byId[e.partyId]); });
     var disc = 0; t.discounts.forEach(function (d) { if (!d.void) disc += d.amount; });
     t.people = people; t.sysTotal = Math.round(sys); t.lineTotal = Math.round(lines); t.extTotal = Math.round(ext); t.discTotal = Math.round(disc);
     t.total = Math.max(0, Math.round(sys + lines + ext - disc));
@@ -175,13 +178,17 @@
       case 'add':
         var mi = op.menuId ? menuById(op.menuId) : null;
         t.lines.push({ id: op.lineId, menuId: op.menuId || '', name: mi ? mi.name : op.name, price: (mi && !(mi.adjustable && isFinite(op.price))) ? mi.price : op.price,
-          qty: op.qty || 1, castFor: op.castFor || '', kind: mi ? 'item' : 'manual', bottle: mi ? !!mi.bottle : false, mtype: op.mtype || '', payTo: op.payTo || '' });
+          qty: op.qty || 1, castFor: op.castFor || '', kind: mi ? 'item' : 'manual', bottle: mi ? !!mi.bottle : !!op.bottle, mtype: op.mtype || '', payTo: op.payTo || '' });
         break;
       case 'qty':
         for (i = 0; i < t.lines.length; i++) if (t.lines[i].id === op.id) { if (op.qty <= 0) t.lines[i].void = true; else t.lines[i].qty = op.qty; }
         break;
       case 'void': t.lines.forEach(function (l) { if (l.id === op.id) l.void = true; }); break;
-      case 'ext': t.exts.push({ id: op.extId, partyId: op.party || t.parties[0].id, min: op.min, price: (t.sys.ext.filter(function (e) { return e.min === op.min; })[0] || { price: 0 }).price }); break;
+      case 'ext':
+        var pt = t.parties.filter(function (x) { return x.id === (op.party || t.parties[0].id); })[0] || t.parties[0];
+        t.exts.push({ id: op.extId, partyId: pt.id, min: op.min, price: (t.sys.ext.filter(function (e) { return e.min === op.min; })[0] || { price: 0 }).price, count: Math.max(1, Math.min(40, op.count != null ? op.count : pt.count)) });
+        break;
+      case 'extcount': t.exts.forEach(function (e) { if (e.id === op.id) e.count = Math.max(1, Math.min(40, op.count)); }); break;
       case 'extvoid': t.exts.forEach(function (e) { if (e.id === op.id) e.void = true; }); break;
       case 'disc': t.discounts.push({ id: op.discId, amount: op.amount, note: op.note || '' }); break;
       case 'undisc': t.discounts.forEach(function (d) { if (d.id === op.id) d.void = true; }); break;
@@ -287,6 +294,15 @@
       rec.id = 'dc' + (DEMO.custs.length + 1) + rid(3); DEMO.custs.push(rec);
       return { ok: true, id: rec.id };
     },
+    apiPosMenuAdd: function (data) {   // デモ：実際のメニューには登録しない（デモを終わると消える）
+      data = data || {};
+      var name = String(data.name || '').trim(), price = Math.round(Number(data.price));
+      if (!name) return { ok: false, error: '名前を入力してください。' };
+      if (!isFinite(price) || price < 0) return { ok: false, error: '金額が正しくありません。' };
+      var same = POS.init.menu.filter(function (m) { return m.tab === data.tab && m.name === name; })[0];
+      if (same) return { ok: true, item: same };
+      return { ok: true, item: { id: 'MDEMO-' + rid(6), tab: data.tab, cat: data.cat || 'その他', name: name, price: price, bottle: data.tab === 'ボトル（焼酎・ウイスキー）', adjustable: false, castable: data.tab === 'ショット' } };
+    },
     apiCustBottleEmpty: function (id) { DEMO.bottles.forEach(function (b) { if (b.id === id) b.status = '空'; }); return { ok: true }; }
   };
 
@@ -331,6 +347,7 @@
   function endDemo(silent) {
     if (!POS.demo) return;
     POS.demo = false; DEMO = null;
+    if (POS.init) POS.init.menu = POS.init.menu.filter(function (m) { return String(m.id).indexOf('MDEMO-') !== 0; });   // デモで登録した銘柄は消す
     var r = POS.real || {};
     POS.list = r.list || []; POS.day = r.day || null; POS.tk = r.tk || null; POS.view = r.view || 'list'; POS.tab = r.tab || 'セット・延長'; POS.sheet = false;
     POS.real = null; POS.realList = null; POS.custs = null; POS.custAt = 0; POS.keep = {};
@@ -691,15 +708,22 @@
     return '<button class="mi' + (n ? ' on' : '') + '" data-menu="' + esc(m.id) + '" data-a="item"><span class="n">' + esc(m.name) + '</span><span class="p">' + yen(m.price) + (m.adjustable ? '〜' : '') + '</span>' +
       (n ? '<span class="bd">×' + n + '</span><span class="mn" role="button" data-a="mn" aria-label="1つ減らす">−</span>' : '') + '</button>';
   }
+  /** 各分類の最後に置く「その他（メニューにない銘柄を、名前と金額を打って入れる）」 */
+  function otherTile(tab, cat, label) {
+    return '<button class="mi other" data-a="other" data-tab="' + esc(tab) + '" data-cat="' + esc(cat) + '"><span class="n">＋ その他の' + esc(label) + '</span><span class="p">名前と金額を入力</span></button>';
+  }
   function itemsHTML(t, tab) {
     var items = POS.init.menu.filter(function (m) { return m.tab === tab; });
     var h = '';
     var cats = [];
     items.forEach(function (m) { if (cats.indexOf(m.cat) < 0) cats.push(m.cat); });
-    cats.forEach(function (c) {
+    var perCat = tab !== 'ショット';   // ショットは、小分類が細かいので、分類の最後に「その他」を1つだけ置く
+    cats.forEach(function (c, i) {
       if (cats.length > 1) h += '<div class="sub-h">' + esc(c) + '</div>';
-      h += '<div class="grid-m">' + items.filter(function (m) { return m.cat === c; }).map(function (m) { return tile(t, m, ''); }).join('') + '</div>';
+      h += '<div class="grid-m">' + items.filter(function (m) { return m.cat === c; }).map(function (m) { return tile(t, m, ''); }).join('') +
+        ((perCat || i === cats.length - 1) && tab !== '割物・その他' ? otherTile(tab, perCat ? c : 'その他', perCat ? c : 'ショット') : '') + '</div>';
     });
+    if (!cats.length && tab !== '割物・その他' && tab !== 'セット・延長') h += '<div class="grid-m">' + otherTile(tab, 'その他', tab) + '</div>';
     if (tab === '割物・その他') {
       h += '<div class="sub-h">定価のないもの</div><div class="chips"><button class="chip" data-a="manual">＋ 金額を手入力（同伴料・指名料など）</button></div>';
     }
@@ -711,7 +735,7 @@
       POS.init.staff.map(function (s) { return '<button class="chip' + (POS.castFor === s.id ? ' on' : '') + '" data-a="castfor" data-id="' + esc(s.id) + '">' + esc(s.name) + '</button>'; }).join('') + '</div>';
     if (!POS.castFor) return h + '<div class="empty">先に、ドリンクをもらう人を選んでください。<br>選んだ人のドリンクバックになります。</div>';
     var items = POS.init.menu.filter(function (m) { return m.castable; });
-    h += '<div class="sub-h">② ' + esc(staffName(POS.castFor)) + ' のドリンクを押す</div><div class="grid-m">' + items.map(function (m) { return tile(t, m, POS.castFor); }).join('') + '</div>';
+    h += '<div class="sub-h">② ' + esc(staffName(POS.castFor)) + ' のドリンクを押す</div><div class="grid-m">' + items.map(function (m) { return tile(t, m, POS.castFor); }).join('') + otherTile('ショット', 'その他', 'ドリンク') + '</div>';
     return h;
   }
   function barHTML(t) {
@@ -725,8 +749,11 @@
     t.exts.forEach(function (e) {
       if (e.void) return;
       var p = t.parties.filter(function (x) { return x.id === e.partyId; })[0];
-      h += '<div class="ln sys"><div class="nm">延長 ' + e.min + '分<small>' + yen(e.price) + ' × ' + (p ? p.count : 0) + '名</small></div>' +
-        (t.status === 'open' ? '<button class="xb" data-a="ext-x" data-id="' + esc(e.id) + '" aria-label="延長を取り消す">×</button>' : '<div></div>') + '<div class="pr">' + yen(e.price * (p ? p.count : 0)) + '</div></div>';
+      var n = extCount(e, p);
+      h += '<div class="ln sys"><div class="nm">延長 ' + e.min + '分<small>' + yen(e.price) + ' × ' + n + '名</small></div>' +
+        (t.status === 'open' ? '<div class="qt"><button data-a="ec-" data-id="' + esc(e.id) + '" aria-label="延長の人数を減らす">−</button><b>' + n + '</b><button data-a="ec+" data-id="' + esc(e.id) + '" aria-label="延長の人数を増やす">＋</button></div>' : '<div></div>') +
+        '<div class="pr">' + yen(e.price * n) + '</div></div>' +
+        (t.status === 'open' ? '<div class="tiny" style="margin:-4px 0 4px;text-align:right"><button class="link" data-a="ext-x" data-id="' + esc(e.id) + '" style="min-height:36px;font-size:12px">この延長を取り消す</button></div>' : '');
     });
     t.lines.forEach(function (l) {
       if (l.void) return;
@@ -834,6 +861,15 @@
       case 'dohan': if (t.status === 'open') send(t.id, { op: 'set', k: 'dohan', v: !t.dohan }); break;
       case 'ext': extModal(Number(b.dataset.min)); break;
       case 'ext-x': send(t.id, { op: 'extvoid', id: b.dataset.id }); break;
+      case 'ec-': case 'ec+':
+        var ex = t.exts.filter(function (x) { return x.id === b.dataset.id && !x.void; })[0];
+        if (ex && t.status === 'open') {
+          var cur = extCount(ex, t.parties.filter(function (x) { return x.id === ex.partyId; })[0]);
+          var nx = a === 'ec-' ? cur - 1 : cur + 1;
+          if (nx >= 1 && nx <= 40) send(t.id, { op: 'extcount', id: ex.id, count: nx });
+        }
+        break;
+      case 'other': otherModal(b.dataset.tab, b.dataset.cat); break;
       case 'join': joinModal(); break;
       case 'ln+': var l1 = lineById(b.dataset.id); if (l1 && l1.qty < 99) send(t.id, { op: 'qty', id: l1.id, qty: l1.qty + 1 }); break;
       case 'ln-': var l2 = lineById(b.dataset.id); if (l2) send(t.id, { op: 'qty', id: l2.id, qty: l2.qty - 1 }); break;
@@ -934,6 +970,52 @@
         done();
       });
   }
+  /**
+   * メニューにない銘柄を、名前と金額を打って入れる。「メニューに登録する」にチェックすると、次から、みんなが選べるようになる。
+   * （入力欄は作り直さない。日本語入力の変換の途中で作り直すと、文字が壊れるため）
+   */
+  function otherModal(tab, cat) {
+    var t = POS.tk; if (!t || t.status !== 'open') return;
+    var cast = POS.tab === 'キャストドリンク' ? POS.castFor : '';
+    if (POS.tab === 'キャストドリンク' && !cast) { toast('先に、だれのドリンクか選んでください'); return; }
+    var cats = [];
+    POS.init.menu.forEach(function (m) { if (m.tab === tab && cats.indexOf(m.cat) < 0) cats.push(m.cat); });
+    if (cats.indexOf(cat) < 0) cats.push(cat);
+    if (cats.indexOf('その他') < 0) cats.push('その他');
+    var title = cast ? staffName(cast) + ' のドリンク（その他）' : 'その他の' + (cat === 'その他' ? tab.replace('（焼酎・ウイスキー）', '') : cat);
+    var mm = modal(mHead(title) + '<p class="muted" style="margin:-8px 0 0;line-height:1.7">メニューにない銘柄を、名前と金額（税込）を入れて追加します。</p>' +
+      '<div class="field"><label for="ot-n">名前</label><input class="input" id="ot-n" placeholder="例：佐藤" maxlength="60" autocomplete="off"></div>' +
+      '<div class="field"><label for="ot-p">金額（税込・1つあたり）</label><input class="input" id="ot-p" type="number" inputmode="numeric" placeholder="例：7700"></div>' +
+      '<div style="text-align:center"><span class="stepper"><button data-m="q-" aria-label="数を減らす">−</button><b id="ot-q">1</b><button data-m="q+" aria-label="数を増やす">＋</button></span></div>' +
+      '<label class="check"><input type="checkbox" id="ot-r">次回から、メニューに登録する（スタッフみんなが選べるようになります）</label>' +
+      '<div class="field hidden" id="ot-cf"><label for="ot-c">登録する小分類</label><select class="input" id="ot-c">' + cats.map(function (c) { return '<option' + (c === cat ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>' +
+      '<div class="tiny" style="line-height:1.7">登録した銘柄は、管理者が「マスタ設定」で、価格などを確認できます。</div></div>' +
+      '<div id="ot-m"></div><div class="row" style="justify-content:flex-end"><button class="btn ghost small" data-m="close">やめる</button><button class="btn small" data-m="ok">追加</button></div>',
+      function (b, done, el) {
+        var a = b.dataset.m, qe = el.querySelector('#ot-q'), q = Number(qe.textContent);
+        if (a === 'q-') { qe.textContent = Math.max(1, q - 1); return; }
+        if (a === 'q+') { qe.textContent = Math.min(99, q + 1); return; }
+        if (a !== 'ok') return;
+        var name = el.querySelector('#ot-n').value.trim(), price = Math.round(Number(el.querySelector('#ot-p').value));
+        if (!name) { showMsg(el.querySelector('#ot-m'), '名前を入力してください。'); return; }
+        if (!isFinite(price) || price < 0 || el.querySelector('#ot-p').value === '') { showMsg(el.querySelector('#ot-m'), '金額を入力してください。'); return; }
+        var bottle = tab === 'ボトル（焼酎・ウイスキー）';
+        var addManual = function () { send(t.id, { op: 'add', lineId: rid(8), name: name, price: price, qty: q, castFor: cast, mtype: 'その他', bottle: bottle }); };
+        if (!el.querySelector('#ot-r').checked) { addManual(); done(); return; }
+        busy(b, true, '登録中…');
+        api('apiPosMenuAdd', { tab: tab, cat: el.querySelector('#ot-c').value, name: name, price: price }).then(function (r) {
+          busy(b, false);
+          if (!r) return;
+          if (!r.ok) { showMsg(el.querySelector('#ot-m'), r.error); return; }
+          if (!POS.init.menu.some(function (x) { return x.id === r.item.id; })) POS.init.menu.push(r.item);
+          if (r.item.price === price) send(t.id, { op: 'add', lineId: rid(8), menuId: r.item.id, qty: q, castFor: cast });
+          else { addManual(); toast('同じ名前の銘柄がすでにあります（' + yen(r.item.price) + '）。今回は、入力した金額で追加しました'); }
+          if (r.item.price === price) toast('メニューに登録しました');
+          done();
+        }).catch(function (err) { busy(b, false); showMsg(el.querySelector('#ot-m'), err.message); });
+      });
+    mm.el.addEventListener('change', function (e) { if (e.target.id === 'ot-r') mm.el.querySelector('#ot-cf').classList.toggle('hidden', !e.target.checked); });
+  }
   function discModal() {
     var t = POS.tk;
     modal(mHead('値引き') + '<p class="muted" style="margin:-8px 0 0">値引きの履歴は、管理者が見られます。</p>' +
@@ -975,13 +1057,25 @@
     var opt = t.sys && t.sys.ext.filter(function (e) { return e.min === min; })[0];
     if (!opt) return;
     var multi = t.parties.length > 1;
-    modal(mHead('延長 ' + min + '分') + '<p class="muted" style="margin:-8px 0 0;line-height:1.7">1人 ' + yen(opt.price) + '。押したときだけ追加されます。</p>' +
-      (multi ? '<div class="field"><label for="ex-p">だれの延長？</label><select class="input" id="ex-p">' + t.parties.map(function (p, i) { return '<option value="' + p.id + '">' + (i === 0 ? '最初のグループ' : hhmm(p.at) + ' に入った人') + '（' + p.count + '名）</option>'; }).join('') + '</select></div>' : '') +
-      '<div class="row" style="justify-content:flex-end"><button class="btn ghost small" data-m="close">やめる</button><button class="btn small" data-m="ok">延長する</button></div>',
-      function (b, done, el) {
-        var pid = multi ? el.querySelector('#ex-p').value : t.parties[0].id;
-        send(t.id, { op: 'ext', extId: rid(8), min: min, party: pid }); done();
-      });
+    var pid = t.parties[0].id, n = t.parties[0].count;
+    function partyOf(id) { return t.parties.filter(function (x) { return x.id === id; })[0] || t.parties[0]; }
+    function body() {
+      return mHead('延長 ' + min + '分') + '<p class="muted" style="margin:-8px 0 0;line-height:1.7">1人 ' + yen(opt.price) + '。最初は全員分で計算します。途中で帰った人・増えた人がいるときは、人数を＋−で直してください（あとから明細でも直せます）。</p>' +
+        (multi ? '<div class="field"><label for="ex-p">だれの延長？</label><select class="input" id="ex-p">' + t.parties.map(function (p, i) { return '<option value="' + p.id + '"' + (p.id === pid ? ' selected' : '') + '>' + (i === 0 ? '最初のグループ' : hhmm(p.at) + ' に入った人') + '（' + p.count + '名）</option>'; }).join('') + '</select></div>' : '') +
+        '<div style="text-align:center"><span class="stepper"><button data-m="n-" aria-label="人数を減らす">−</button><b>' + n + '名</b><button data-m="n+" aria-label="人数を増やす">＋</button></span><div style="font-size:20px;font-weight:700;margin-top:8px">' + yen(opt.price * n) + '</div></div>' +
+        '<div class="row" style="justify-content:flex-end"><button class="btn ghost small" data-m="close">やめる</button><button class="btn small" data-m="ok">延長する</button></div>';
+    }
+    modal(body(), function (b, done, el) {
+      var a = b.dataset.m;
+      if (a === 'n-') { n = Math.max(1, n - 1); el.innerHTML = body(); }
+      else if (a === 'n+') { n = Math.min(40, n + 1); el.innerHTML = body(); }
+      else if (a === 'ok') {
+        var sel = el.querySelector('#ex-p'); if (sel) pid = sel.value;
+        send(t.id, { op: 'ext', extId: rid(8), min: min, party: pid, count: n }); done();
+      }
+    }).el.addEventListener('change', function (e) {
+      if (e.target.id === 'ex-p') { pid = e.target.value; n = partyOf(pid).count; e.currentTarget.innerHTML = body(); }
+    });
   }
   function joinModal() {
     var t = POS.tk, n = 1;
