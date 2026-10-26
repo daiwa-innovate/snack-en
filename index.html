@@ -185,6 +185,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
 <script src="admin-pos.js?v=2"></script>
 <script src="bonus.js?v=1"></script>
 <script src="shift.js?v=1"></script>
+<script src="books.js?v=1"></script>
 <script>
 var CONF = window.EN_CONFIG || {};
 var API_URL = CONF.apiUrl || '';
@@ -552,7 +553,7 @@ function drawStaffHome(d) {
 /* =========================================================
  * 管理者画面
  * ======================================================= */
-var ADMIN_TABS = [['dash', 'ダッシュボード'], ['pos', '伝票・売上'], ['shift', 'シフト'], ['bonus', '歩合'], ['pl', '月次収支'], ['cal', '目標・カレンダー'], ['users', 'スタッフ管理'], ['master', 'マスタ設定'], ['notices', 'お知らせ'], ['settings', '設定']];
+var ADMIN_TABS = [['dash', 'ダッシュボード'], ['pos', '伝票・売上'], ['shift', 'シフト'], ['bonus', '歩合'], ['exp', '経費'], ['pl', '月次収支'], ['export', 'Excel書き出し'], ['cal', '目標・カレンダー'], ['custadm', '顧客管理'], ['users', 'スタッフ管理'], ['master', 'マスタ設定'], ['notices', 'お知らせ'], ['settings', '設定']];
 
 function renderAdmin() {
   render(
@@ -584,7 +585,7 @@ function adminTab() {
   });
   var main = $('#a-main');
   main.innerHTML = '<div class="loading">読み込み中…</div>';
-  ({ dash: adminDash, pos: adminPos, shift: adminShift, bonus: adminBonus, pl: adminPL, cal: adminCalendar, users: adminUsers, master: adminMaster, notices: adminNotices, settings: adminSettings })[state.adminTab](main);
+  ({ dash: adminDash, pos: adminPos, shift: adminShift, bonus: adminBonus, exp: adminExp, export: adminExport, custadm: adminCustomers, pl: adminPL, cal: adminCalendar, users: adminUsers, master: adminMaster, notices: adminNotices, settings: adminSettings })[state.adminTab](main);
 }
 
 /* ---------- 目標・カレンダー ---------- */
