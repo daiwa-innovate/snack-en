@@ -97,7 +97,15 @@
     '.cust .nm{font-size:17px;font-weight:700}.cust .sb{font-size:12px;color:var(--sub);line-height:1.6}' +
     '.fab{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));min-height:56px;border-radius:28px;box-shadow:0 6px 18px rgba(0,0,0,.25);z-index:15}' +
     '.sec-t{font-size:15px;font-weight:700;margin:4px 0 0}' +
-    '.empty{padding:28px 10px;text-align:center;color:var(--sub);font-size:14px;line-height:1.8}';
+    '.empty{padding:28px 10px;text-align:center;color:var(--sub);font-size:14px;line-height:1.8}' +
+    /* デモ（練習）の赤い警告 */
+    '#demo-bar{position:fixed;left:0;right:0;top:0;z-index:95;background:#C62828;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;box-shadow:0 2px 12px rgba(0,0,0,.35)}' +
+    '#demo-bar .tx{display:flex;flex-direction:column;gap:1px;min-width:0;font-size:12px;line-height:1.5}#demo-bar .tx b{font-size:16px;letter-spacing:.04em}' +
+    '#demo-bar .btn{background:#fff;color:#C62828;min-height:42px;flex-shrink:0;padding:0 14px}' +
+    '#demo-frame{position:fixed;inset:0;border:6px solid #C62828;pointer-events:none;z-index:94}' +
+    '#demo-frame::after{content:"デモ";position:absolute;left:50%;top:52%;transform:translate(-50%,-50%) rotate(-16deg);font-size:min(36vw,280px);font-weight:700;color:rgba(198,40,40,.07);white-space:nowrap}' +
+    'body.demo-on .staff{padding-top:66px}body.demo-on .alerts{top:74px}body.demo-on .tk-head{top:66px}' +
+    '.chip.demo{background:#C62828;border-color:#C62828;color:#fff;font-weight:700}.chip.demo-l{border-color:#C62828;color:#C62828}';
   var st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
 
   /* ---------- 小さな部品 ---------- */
@@ -113,7 +121,7 @@
   function sNow() { return Date.now() + POS.offset; }
   function bizKey() { var j = jst(sNow() - 6 * 3600000); return j.y + '-' + pad2(j.m) + '-' + pad2(j.d); }
   function bizLabel() { var j = jst(sNow() - 6 * 3600000); return j.m + '/' + j.d + '（' + WD[j.wd] + '）'; }
-  function newId() { return 'T' + bizKey().replace(/-/g, '') + '-' + rid(6); }
+  function newId() { return POS.demo ? 'TDEMO-' + rid(8) : 'T' + bizKey().replace(/-/g, '') + '-' + rid(6); }
   function staffName(id) { var s = POS.init.staff.filter(function (x) { return x.id === id; })[0]; return s ? s.name : ''; }
   function sysById(id) { return POS.init.systems.filter(function (x) { return x.id === id; })[0]; }
   function menuById(id) { return POS.init.menu.filter(function (x) { return x.id === id; })[0]; }
@@ -181,17 +189,178 @@
     calc(t);
   }
 
+  /* =========================================================
+   * デモ（練習）モード
+   * 実際のデータには一切書き込まない。伝票・顧客・会計は、この画面の中（この端末のメモリ）だけで動かし、
+   * 画面を再読み込みするか「デモを終わる」を押すと、すべて消える。メニュー・料金・スタッフ名だけは、実際の設定を読み取って使う。
+   * ======================================================= */
+  var DEMO = null;
+  function isDemoId(id) { return String(id).indexOf('TDEMO-') === 0; }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function demoSeed() {
+    var d = bizKey();
+    DEMO = {
+      tickets: {}, attend: [],
+      custs: [{ id: 'dc1', name: 'デモ太郎さん', nickname: 'たろう', birthday: '', company: '', likes: '芋', memo: '練習用のお客様です' },
+              { id: 'dc2', name: 'デモ花子さん', nickname: '', birthday: '', company: '', likes: '', memo: '練習用のお客様です' }],
+      visits: [{ customerId: 'dc1', date: d, people: 2, amount: 12000, bottle: '', ticketId: 'seed' }],
+      bottles: [{ id: 'db1', customerId: 'dc1', name: 'いいちこ', date: d, status: 'keep', ticketId: '' }]
+    };
+  }
+  function demoSummary(t) { var s = summaryOf(t); s.credit = t.credit ? t.credit.amount : 0; return s; }
+  var DEMO_API = {
+    apiPosOps: function (id, ops) {
+      var t = DEMO.tickets[id];
+      if (!t) { t = blank(id); t.version = 0; DEMO.tickets[id] = t; }
+      if (t.status !== 'open') return { ok: false, closed: true, error: 'この伝票はすでに会計済み（または取り消し）です。', ticket: clone(t) };
+      var err = '';
+      for (var i = 0; i < ops.length; i++) { try { applyLocal(t, ops[i]); } catch (e) { err = '操作ができませんでした。'; break; } }
+      t.version++;
+      return { ok: !err, error: err || undefined, now: sNow(), ticket: clone(t) };
+    },
+    apiPosList: function () {
+      var rows = Object.keys(DEMO.tickets).map(function (k) { return DEMO.tickets[k]; }).sort(function (a, b) { return a.openedAt - b.openedAt; });
+      var day = { total: 0, groups: 0, visits: 0, newCount: 0, regularCount: 0, open: 0, openTotal: 0 };
+      rows.forEach(function (t) {
+        if (t.status === 'open') { day.open++; day.openTotal += t.total; }
+        else if (t.status === 'closed') { day.total += t.total; day.groups++; day.visits += t.people; if (t.isNew) day.newCount += t.people; else day.regularCount += t.people; }
+      });
+      return { now: sNow(), date: bizKey(), tickets: rows.filter(function (t) { return t.status !== 'void'; }).map(demoSummary), day: day };
+    },
+    apiPosTicket: function (id) { var t = DEMO.tickets[id]; return t ? { ok: true, now: sNow(), ticket: clone(t) } : { ok: false, error: '伝票が見つかりません。' }; },
+    apiPosPay: function (id, pays, credit) {
+      var t = DEMO.tickets[id];
+      if (!t) return { ok: false, error: '伝票が見つかりません。' };
+      if (t.status !== 'open') return { ok: false, closed: true, error: 'この伝票はすでに会計済みです。', ticket: clone(t) };
+      calc(t);
+      if (!t.sys) return { ok: false, error: '先に料金システムを選んでください。' };
+      var list = [], sum = 0;
+      for (var i = 0; i < (pays || []).length; i++) {
+        var p = pays[i], pm = POS.init.paymethods.filter(function (x) { return x.id === p.method; })[0], amount = Math.round(Number(p.amount));
+        if (!pm || !(amount > 0)) return { ok: false, error: '支払いの内容を確認してください。' };
+        var item = { method: pm.id, name: pm.name, amount: amount, fee: Math.round(amount * (pm.rate || 0)) };
+        if (pm.id === 'cash') item.received = Math.max(amount, Math.round(Number(p.received)) || amount);
+        list.push(item); sum += amount;
+      }
+      var cr = Math.round(Number(credit)) || 0;
+      if (cr < 0 || sum + cr !== t.total) return { ok: false, error: '支払いの合計（' + (sum + cr) + '円）が伝票の合計（' + t.total + '円）と合いません。' };
+      t.pays = list; t.credit = cr > 0 ? { amount: cr, id: 'KDEMO' } : null; t.status = 'closed'; t.closedAt = sNow(); t.closedBy = 'デモ'; t.version++;
+      if (t.customerId) {
+        DEMO.visits.push({ customerId: t.customerId, date: t.date, people: t.people, amount: t.total, bottle: '', ticketId: t.id });
+        t.lines.forEach(function (l) { if (!l.void && l.bottle) DEMO.bottles.push({ id: 'DB' + t.id + l.id, customerId: t.customerId, name: l.name, date: t.date, status: 'keep', ticketId: t.id }); });
+      }
+      return { ok: true, ticket: clone(t) };
+    },
+    apiPosVoid: function (id) { var t = DEMO.tickets[id]; if (!t) return { ok: false, error: '伝票が見つかりません。' }; t.status = 'void'; t.version++; return { ok: true, ticket: clone(t) }; },
+    apiPosReopen: function (id) {
+      var t = DEMO.tickets[id];
+      if (!t || t.status !== 'closed') return { ok: false, error: 'この伝票は会計済みではありません。' };
+      DEMO.visits = DEMO.visits.filter(function (v) { return v.ticketId !== id; });
+      DEMO.bottles = DEMO.bottles.filter(function (b) { return b.ticketId !== id; });
+      t.status = 'open'; t.pays = []; t.credit = null; t.version++;
+      return { ok: true, ticket: clone(t) };
+    },
+    apiPosAttend: function (date) { return { date: date, staffIds: DEMO.attend.slice() }; },
+    apiPosSetAttend: function (date, ids) { DEMO.attend = (ids || []).slice(); return { ok: true, date: date, staffIds: DEMO.attend }; },
+    apiCustList: function () {
+      return { ok: true, customers: DEMO.custs.map(function (c) {
+        var v = DEMO.visits.filter(function (x) { return x.customerId === c.id; });
+        return Object.assign(clone(c), { visits: v.length, lastVisit: v.reduce(function (a, x) { return x.date > a ? x.date : a; }, ''), bottles: DEMO.bottles.filter(function (b) { return b.customerId === c.id && b.status === 'keep'; }).length });
+      }) };
+    },
+    apiCustGet: function (id) {
+      var c = DEMO.custs.filter(function (x) { return x.id === id; })[0];
+      if (!c) return { ok: false, error: 'お客様が見つかりません。' };
+      return { ok: true, customer: clone(c),
+        visits: DEMO.visits.filter(function (x) { return x.customerId === id; }).map(function (x) { return { date: x.date, name: c.name, people: x.people, amount: x.amount, bottle: x.bottle }; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }),
+        bottles: DEMO.bottles.filter(function (b) { return b.customerId === id && b.status === 'keep'; }).map(function (b) { return { id: b.id, name: b.name, date: b.date }; }) };
+    },
+    apiCustSave: function (data) {
+      data = data || {};
+      var name = String(data.name || '').trim();
+      if (!name) return { ok: false, error: '名前を入力してください。' };
+      var dup = DEMO.custs.filter(function (c) { return c.name === name && c.id !== data.id; })[0];
+      if (dup && !data.force) return { ok: false, duplicate: true, id: dup.id, error: '同じ名前のお客様がすでにいます。' };
+      var rec = { name: name, nickname: String(data.nickname || ''), birthday: String(data.birthday || ''), company: String(data.company || ''), likes: String(data.likes || ''), memo: String(data.memo || '') };
+      var c = data.id ? DEMO.custs.filter(function (x) { return x.id === data.id; })[0] : null;
+      if (c) { Object.keys(rec).forEach(function (k) { c[k] = rec[k]; }); return { ok: true, id: c.id }; }
+      rec.id = 'dc' + (DEMO.custs.length + 1) + rid(3); DEMO.custs.push(rec);
+      return { ok: true, id: rec.id };
+    },
+    apiCustBottleEmpty: function (id) { DEMO.bottles.forEach(function (b) { if (b.id === id) b.status = '空'; }); return { ok: true }; }
+  };
+
+  /** 画面から使う通信の入り口。デモの伝票・デモ中の操作は、サーバーに送らず、画面の中で処理する。 */
+  function api(fn) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    var first = args[0];
+    var demo = (typeof first === 'string' && first.charAt(0) === 'T' && /^T(DEMO-|\d{8}-)/.test(first)) ? isDemoId(first) : !!POS.demo;
+    if (demo) {
+      var f = DEMO && DEMO_API[fn];
+      if (!f) return Promise.reject(new Error('デモ中は、この操作はできません。'));
+      return new Promise(function (resolve) { setTimeout(function () { resolve(f.apply(null, args)); }, 50); });
+    }
+    return call.apply(null, [fn, state.token].concat(args));
+  }
+
+  function demoChrome(on) {
+    document.body.classList.toggle('demo-on', !!on);
+    var bar = document.getElementById('demo-bar'), frame = document.getElementById('demo-frame');
+    if (!on) { if (bar) bar.remove(); if (frame) frame.remove(); return; }
+    if (!frame) { frame = document.createElement('div'); frame.id = 'demo-frame'; frame.setAttribute('aria-hidden', 'true'); document.body.appendChild(frame); }
+    if (!bar) {
+      bar = document.createElement('div'); bar.id = 'demo-bar'; bar.setAttribute('role', 'alert');
+      bar.innerHTML = '<div class="tx"><b>⚠ デモ操作中（練習用）</b><span>ここで入れた伝票・会計は、実際の売上・歩合・顧客には入りません。</span></div><button class="btn small" data-demo="end">デモを終わる</button>';
+      bar.onclick = function (e) { if (e.target.closest('[data-demo="end"]')) endDemo(); };
+      document.body.appendChild(bar);
+    }
+  }
+  function startDemo() {
+    confirmBox('レジの練習（デモ）を始める', 'お店の売上や顧客には入らない、練習用の画面です。入れた内容は、終わると消えます。始めますか？', '練習を始める').then(function (ok) {
+      if (!ok) return;
+      POS.real = { list: POS.list, day: POS.day, tk: POS.tk, view: POS.view, tab: POS.tab, sheet: POS.sheet };
+      POS.realList = POS.list;
+      POS.demo = true; demoSeed();
+      POS.list = []; POS.day = null; POS.tk = null; POS.view = 'list'; POS.sheet = false; POS.tab = 'セット・延長';
+      POS.custs = null; POS.custAt = 0; POS.keep = {}; POS.castFor = '';
+      demoChrome(true);
+      toast('デモを始めました。これは練習用です');
+      if (state.staffTab === 'pos') draw(); else goTab('pos');
+    });
+  }
+  function endDemo(silent) {
+    if (!POS.demo) return;
+    POS.demo = false; DEMO = null;
+    var r = POS.real || {};
+    POS.list = r.list || []; POS.day = r.day || null; POS.tk = r.tk || null; POS.view = r.view || 'list'; POS.tab = r.tab || 'セット・延長'; POS.sheet = false;
+    POS.real = null; POS.realList = null; POS.custs = null; POS.custAt = 0; POS.keep = {};
+    demoChrome(false);
+    if (!silent) toast('デモを終わりました。実際の画面に戻ります');
+    if (POS.main && state.staffTab === 'pos') { refreshList(function () { draw(); }).catch(function () { draw(); }); draw(); }
+    else if (window.staffTab && state.user && state.user.role !== 'admin' && $('#s-main')) staffTab();
+  }
+  window.posDemoOff = function () { endDemo(true); };
+  /** デモ中に、ほかの画面（実際のデータ）へ移ろうとしたら、デモを終わるか確かめる。 */
+  window.posDemoGuard = function (tab) {
+    if (!POS.demo || tab === 'pos' || tab === 'cust') return true;
+    confirmBox('デモを終わりますか？', 'ほかの画面は、実際のデータです。デモの内容は消えます。', 'デモを終わる').then(function (ok) {
+      if (ok) { endDemo(true); staffTab(); } else { state.staffTab = 'pos'; staffTab(); }
+    });
+    return false;
+  };
+
   /* ---------- 保存（順番に送る・再送する） ---------- */
   function setStatus(s) {
     POS.status = s;
     var el = document.getElementById('pos-sync');
-    if (el) { el.className = 'sync ' + (s === 'ok' ? '' : s === 'saving' ? 'saving' : 'off'); el.innerHTML = '<i></i>' + (s === 'ok' ? '保存済み' : s === 'saving' ? '保存中…' : '通信できません（自動で再送します）'); }
+    if (el) { el.className = 'sync ' + (s === 'ok' ? '' : s === 'saving' ? 'saving' : 'off'); el.innerHTML = '<i></i>' + (s === 'ok' ? (POS.demo ? '練習中' : '保存済み') : s === 'saving' ? '保存中…' : '通信できません（自動で再送します）'); }
   }
   function summaryOf(t) {
     return { id: t.id, date: t.date, status: t.status, name: t.name, isNew: t.isNew, people: t.people, total: t.total, version: t.version, openedAt: t.openedAt,
       endsAt: t.endsAt || 0, sysName: t.sys ? t.sys.name : '', sysId: t.sys ? t.sys.id : '', seat: t.seat, customerId: t.customerId, credit: 0 };
   }
   function touchList(t) {
+    if (isDemoId(t.id) !== !!POS.demo) return;   // デモの伝票と実際の伝票を、混ぜない
     var found = false;
     POS.list = POS.list.map(function (x) { if (x.id === t.id) { found = true; var v = summaryOf(t); v.version = x.version; return v; } return x; });
     if (!found) POS.list.push(summaryOf(t));
@@ -209,7 +378,7 @@
     var batch = (POS.q[id] || []).slice(0, 30);
     if (!batch.length) { if (!Object.keys(POS.sending).some(function (k) { return POS.sending[k]; })) setStatus('ok'); return; }
     POS.sending[id] = true;
-    call('apiPosOps', state.token, id, batch).then(function (r) {
+    api('apiPosOps', id, batch).then(function (r) {
       POS.sending[id] = false;
       if (!r) return;
       if (r.ok) {
@@ -230,6 +399,7 @@
   }
   function adopt(t) {
     if (!t) return;
+    if (isDemoId(t.id) !== !!POS.demo) return;
     if (POS.tk && POS.tk.id === t.id && !(POS.q[t.id] && POS.q[t.id].length)) {
       POS.tk = t;
       if (t.sys === undefined) t.sys = null;
@@ -239,15 +409,15 @@
     redraw();
   }
   function resync(id) {
-    call('apiPosTicket', state.token, id).then(function (r) { if (r && r.ok) adopt(r.ticket); }).catch(function () {});
+    api('apiPosTicket', id).then(function (r) { if (r && r.ok) adopt(r.ticket); }).catch(function () {});
   }
   function redraw() { if (POS.main && state.staffTab === 'pos' && !POS.holdDraw) draw(); }
 
   /* ---------- 定期の読み込み・時間のお知らせ ---------- */
   function refreshList(cb) {
-    return call('apiPosList', state.token, null).then(function (d) {
+    return api('apiPosList', null).then(function (d) {
       if (!d) return;
-      POS.offset = d.now - Date.now();
+      if (!POS.demo) { POS.offset = d.now - Date.now(); POS.realList = d.tickets; }
       POS.list = d.tickets; POS.day = d.day;
       // 自分が開いている伝票が、ほかの端末で変わっていたら読み直す
       if (POS.tk && !(POS.q[POS.tk.id] && POS.q[POS.tk.id].length) && !POS.sending[POS.tk.id]) {
@@ -257,25 +427,40 @@
       if (cb) cb();
     });
   }
+  /** 時間のお知らせの対象：実際の伝票（デモ中も出す）と、デモ中はデモの伝票。 */
+  function alertLists() {
+    return POS.demo ? [{ list: POS.list, demo: true }, { list: POS.realList || [], demo: false }] : [{ list: POS.list, demo: false }];
+  }
+  /** デモ中に、実際の伝票の一覧だけを読む（時間のお知らせのため）。 */
+  function refreshReal(cb) {
+    return call('apiPosList', state.token, null).then(function (d) {
+      if (!d) return;
+      POS.offset = d.now - Date.now(); POS.realList = d.tickets;
+      if (cb) cb();
+    });
+  }
   function checkAlerts() {
     var changed = false;
-    POS.list.forEach(function (t) {
-      if (t.status !== 'open' || !t.endsAt) return;
-      var rem = t.endsAt - sNow();
-      var kind = rem <= 0 ? 'end' : rem <= 5 * 60000 ? 'soon' : '';
-      if (!kind) return;
-      var key = t.id + ':' + t.endsAt + ':' + kind;
-      if (POS.alerted[key]) return;
-      POS.alerted[key] = true;
-      POS.alerts = POS.alerts.filter(function (a) { return !(a.id === t.id); });
-      POS.alerts.push({ id: t.id, kind: kind, key: key });
-      changed = true;
-      beep(kind);
+    alertLists().forEach(function (src) {
+      src.list.forEach(function (t) {
+        if (t.status !== 'open' || !t.endsAt) return;
+        var rem = t.endsAt - sNow();
+        var kind = rem <= 0 ? 'end' : rem <= 5 * 60000 ? 'soon' : '';
+        if (!kind) return;
+        var key = t.id + ':' + t.endsAt + ':' + kind;
+        if (POS.alerted[key]) return;
+        POS.alerted[key] = true;
+        POS.alerts = POS.alerts.filter(function (a) { return !(a.id === t.id); });
+        POS.alerts.push({ id: t.id, kind: kind, key: key, demo: src.demo });
+        changed = true;
+        beep(kind);
+      });
     });
     // 閉じた伝票・延長して終了時刻が変わった伝票のお知らせは消す
     var before = POS.alerts.length;
     POS.alerts = POS.alerts.filter(function (a) {
-      var t = POS.list.filter(function (x) { return x.id === a.id; })[0];
+      var lists = alertLists().filter(function (s) { return s.demo === !!a.demo; });
+      var t = lists.length ? lists[0].list.filter(function (x) { return x.id === a.id; })[0] : null;
       return t && t.status === 'open' && a.key.indexOf(':' + t.endsAt + ':') > 0;
     });
     if (before !== POS.alerts.length) changed = true;
@@ -304,11 +489,12 @@
     var el = document.getElementById('pos-alerts');
     if (!el) { el = document.createElement('div'); el.id = 'pos-alerts'; el.className = 'alerts'; el.setAttribute('role', 'alert'); document.body.appendChild(el); }
     el.innerHTML = POS.alerts.map(function (a) {
-      var t = POS.list.filter(function (x) { return x.id === a.id; })[0];
+      var src = alertLists().filter(function (s) { return s.demo === !!a.demo; })[0];
+      var t = src ? src.list.filter(function (x) { return x.id === a.id; })[0] : null;
       if (!t) return '';
       var s = POS.init ? sysById(t.sysId) : null;
       var exts = s ? [{ min: s.ext1Min, price: s.ext1Price }, { min: s.ext2Min, price: s.ext2Price }].filter(function (e) { return e.min > 0; }) : [];
-      return '<div class="alert ' + a.kind + '"><b>' + esc(t.name || '新規') + '（' + num(t.people) + '名）' + (a.kind === 'end' ? ' の時間になりました' : ' 終了5分前です') + '</b>' +
+      return '<div class="alert ' + a.kind + '"><b>' + (a.demo ? '［デモ］' : '') + esc(t.name || '新規') + '（' + num(t.people) + '名）' + (a.kind === 'end' ? ' の時間になりました' : ' 終了5分前です') + '</b>' +
         '<div class="acts">' + exts.map(function (e) { return '<button class="btn small" data-a="al-ext" data-id="' + esc(t.id) + '" data-min="' + e.min + '">延長' + e.min + '分（' + yen(e.price) + '/人）</button>'; }).join('') +
         '<button class="btn small ghost" data-a="al-open" data-id="' + esc(t.id) + '">伝票を開く</button><button class="btn small ghost" data-a="al-x" data-key="' + esc(a.key) + '">閉じる</button></div></div>';
     }).join('');
@@ -316,16 +502,20 @@
       var b = e.target.closest('[data-a]'); if (!b) return;
       var act = b.dataset.a;
       if (act === 'al-x') { POS.alerts = POS.alerts.filter(function (a) { return a.key !== b.dataset.key; }); drawAlerts(); }
-      else if (act === 'al-open') { POS.alerts = POS.alerts.filter(function (a) { return a.id !== b.dataset.id; }); drawAlerts(); goTab('pos'); openTicket(b.dataset.id); }
+      else if (act === 'al-open') {
+        POS.alerts = POS.alerts.filter(function (a) { return a.id !== b.dataset.id; }); drawAlerts();
+        if (POS.demo && !isDemoId(b.dataset.id)) endDemo(true);     // 実際の伝票のお知らせは、デモを終わって開く
+        goTab('pos'); openTicket(b.dataset.id);
+      }
       else if (act === 'al-ext') { extendById(b.dataset.id, Number(b.dataset.min)); }
     };
   }
   function extendById(id, min) {
     if (POS.tk && POS.tk.id === id) { send(id, { op: 'ext', extId: rid(8), min: min, party: earliestParty(POS.tk) }); POS.alerts = POS.alerts.filter(function (a) { return a.id !== id; }); drawAlerts(); toast('延長しました'); return; }
-    call('apiPosTicket', state.token, id).then(function (r) {
+    api('apiPosTicket', id).then(function (r) {
       if (!r || !r.ok) return;
-      return call('apiPosOps', state.token, id, [{ oid: rid(12), op: 'ext', extId: rid(8), min: min, party: earliestParty(r.ticket) }]).then(function (r2) {
-        if (r2 && r2.ok) { toast('延長しました'); refreshList(function () { checkAlerts(); redraw(); }); } else toast((r2 && r2.error) || '延長できませんでした');
+      return api('apiPosOps', id, [{ oid: rid(12), op: 'ext', extId: rid(8), min: min, party: earliestParty(r.ticket) }]).then(function (r2) {
+        if (r2 && r2.ok) { toast('延長しました'); (isDemoId(id) ? refreshList : refreshReal)(function () { checkAlerts(); redraw(); }); } else toast((r2 && r2.error) || '延長できませんでした');
       });
     }).catch(function (err) { toast(err.message); });
   }
@@ -349,6 +539,8 @@
       if (document.hidden || !POS.init) return;
       POS.pollN++;
       var onPos = state.staffTab === 'pos' && POS.main;
+      // デモ中も、実際の伝票の時間のお知らせは出す（実際の一覧だけを読み、デモの画面は触らない）
+      if (POS.demo) { refreshReal(function () { checkAlerts(); }).catch(function () {}); return; }
       // 伝票の画面を開いているときは約6秒おき、ほかの画面では約18秒おき
       if (!onPos && POS.pollN % 3 !== 0) { checkAlerts(); return; }
       refreshList(function () { checkAlerts(); if (onPos) redraw(); }).catch(function () {});
@@ -357,7 +549,7 @@
     document.addEventListener('visibilitychange', function () { if (!document.hidden && POS.init && state.user) refreshList(function () { checkAlerts(); redraw(); }).catch(function () {}); });
     window.addEventListener('resize', function () { if (state.staffTab === 'pos') { var w = window.innerWidth >= 900; if (w !== POS.wide) redraw(); } });
   }
-  function stopBackground() { if (POS.poll) { clearInterval(POS.poll); POS.poll = null; } POS.init = null; POS.tk = null; POS.q = {}; POS.alerts = []; var el = document.getElementById('pos-alerts'); if (el) el.remove(); }
+  function stopBackground() { if (POS.poll) { clearInterval(POS.poll); POS.poll = null; } POS.init = null; POS.tk = null; POS.q = {}; POS.alerts = []; POS.demo = false; DEMO = null; POS.real = null; POS.realList = null; demoChrome(false); var el = document.getElementById('pos-alerts'); if (el) el.remove(); }
   window.posStop = stopBackground;
   window.posBackground = function () { ensureInit(function () { refreshList(function () { checkAlerts(); }).catch(function () {}); startBackground(); }); };
 
@@ -417,10 +609,13 @@
     var d = POS.day || { total: 0, groups: 0, visits: 0, open: 0 };
     var open = POS.list.filter(function (t) { return t.status === 'open'; });
     var closed = POS.list.filter(function (t) { return t.status === 'closed'; });
-    var h = '<aside class="pos-list"><section class="card sum-card"><div class="row"><div class="muted">今日 ' + bizLabel() + ' の営業</div>' +
+    var h = '<aside class="pos-list"><section class="card sum-card"' + (POS.demo ? ' style="border:2px solid #C62828"' : '') + '><div class="row"><div class="muted">' +
+      (POS.demo ? '<b style="color:#C62828;font-size:15px">デモ（練習）の画面です</b>' : '今日 ' + bizLabel() + ' の営業') + '</div>' +
       '<span id="pos-sync" class="sync"><i></i>保存済み</span></div>' +
       '<div class="big">' + yen(d.total) + '</div><div class="tiny">会計済み ' + num(d.groups) + '組・' + num(d.visits) + '名　開いている伝票 ' + num(open.length) + '</div>' +
-      '<div class="chips" style="margin-top:4px"><button class="chip" data-a="attend">出勤</button><button class="chip' + (POS.sound ? ' on' : '') + '" data-a="sound">' + (POS.sound ? '🔔 音あり' : '🔕 音なし') + '</button></div></section>' +
+      '<div class="chips" style="margin-top:4px"><button class="chip" data-a="attend">出勤</button><button class="chip' + (POS.sound ? ' on' : '') + '" data-a="sound">' + (POS.sound ? '🔔 音あり' : '🔕 音なし') + '</button>' +
+      (POS.demo ? '<button class="chip demo" data-a="demo-end">デモを終わる</button>' : '<button class="chip demo-l" data-a="demo-start">レジの練習（デモ）</button>') + '</div>' +
+      (POS.demo ? '<div class="tiny" style="color:#C62828;line-height:1.7">ここで入れた伝票・お客様・会計は、実際には残りません。メニューと料金だけ、実際の設定を使っています。</div>' : '') + '</section>' +
       '<button class="btn block" data-a="new" style="min-height:56px;font-size:17px">＋ 新しい伝票</button>';
     if (!open.length) h += '<div class="empty">開いている伝票はありません。<br>「新しい伝票」を押して始めます。</div>';
     open.forEach(function (t) {
@@ -446,7 +641,8 @@
     var h = '<div class="tk-head"><div class="top">' +
       '<button class="icon-btn sheet-x" data-a="back" aria-label="一覧へ戻る">' + ICON.left + '</button>' +
       '<button class="tname" data-a="name">' + esc(t.name || '新規のお客様') + ' <span class="tiny">✎</span></button>' +
-      '<span id="pos-sync" class="sync"><i></i>保存済み</span></div><div class="chips">' +
+      (POS.demo ? '<span class="badge" style="background:#C62828;color:#fff;font-size:13px;padding:5px 9px">デモ</span>' : '') +
+      '<span id="pos-sync" class="sync"><i></i>' + (POS.demo ? '練習中' : '保存済み') + '</span></div><div class="chips">' +
       '<span class="stepper"><button data-a="pp-" aria-label="人数を減らす">−</button><b>' + t.people + '名</b><button data-a="pp+" aria-label="人数を増やす">＋</button></span>' +
       '<button class="chip' + (s ? ' on' : ' warn') + '" data-a="system">' + (s ? esc(s.name) + '　' + yen(s.price) : '料金システムを選ぶ') + '</button>' +
       '<button class="chip' + (t.mob.length ? ' on' : '') + '" data-a="mob">担当：' + (t.mob.length ? esc(t.mob.map(staffName).join('・')) : '未選択') + '</button>' +
@@ -564,7 +760,7 @@
     POS.view = 'ticket'; POS.sheet = false;
     var s = POS.list.filter(function (x) { return x.id === id; })[0];
     POS.main.innerHTML = '<div class="loading">伝票を開いています…</div>';
-    call('apiPosTicket', state.token, id).then(function (r) {
+    api('apiPosTicket', id).then(function (r) {
       if (!r) return;
       if (!r.ok) { toast(r.error); POS.view = 'list'; draw(); return; }
       POS.tk = r.ticket; calc(POS.tk);
@@ -575,7 +771,7 @@
   }
   function loadKeep(t) {
     if (!t.customerId || POS.keep[t.customerId]) return;
-    call('apiCustGet', state.token, t.customerId).then(function (r) { if (r && r.ok) { POS.keep[t.customerId] = r.bottles; redraw(); } }).catch(function () {});
+    api('apiCustGet', t.customerId).then(function (r) { if (r && r.ok) { POS.keep[t.customerId] = r.bottles; redraw(); } }).catch(function () {});
   }
   function newTicket() {
     var id = newId();
@@ -621,6 +817,8 @@
         if (POS.sound) beep('soon');
         draw(); break;
       case 'attend': attendModal(); break;
+      case 'demo-start': startDemo(); break;
+      case 'demo-end': endDemo(); break;
       case 'tab': POS.tab = b.dataset.t; draw(); break;
       case 'castfor': POS.castFor = b.dataset.id; draw(); break;
       case 'item': addItem(b.dataset.menu); break;
@@ -694,7 +892,7 @@
     });
   }
   function attendModal() {
-    call('apiPosAttend', state.token, bizKey()).then(function (r) {
+    api('apiPosAttend', bizKey()).then(function (r) {
       if (!r) return;
       var sel = r.staffIds.slice();
       function body() {
@@ -704,7 +902,7 @@
       }
       modal(body(), function (b, done, el) {
         if (b.dataset.m === 'tg') { var i = sel.indexOf(b.dataset.id); if (i >= 0) sel.splice(i, 1); else sel.push(b.dataset.id); el.innerHTML = body(); }
-        else if (b.dataset.m === 'ok') { call('apiPosSetAttend', state.token, bizKey(), sel).then(function () { toast('出勤を保存しました'); }).catch(function (err) { toast(err.message); }); done(); }
+        else if (b.dataset.m === 'ok') { api('apiPosSetAttend', bizKey(), sel).then(function () { toast('出勤を保存しました'); }).catch(function (err) { toast(err.message); }); done(); }
       });
     }).catch(function (err) { toast(err.message); });
   }
@@ -802,7 +1000,7 @@
   /* ---------- お客様を選ぶ・名前 ---------- */
   function loadCusts(cb) {
     if (POS.custs && Date.now() - POS.custAt < 60000) return cb(POS.custs);
-    call('apiCustList', state.token).then(function (r) { if (!r) return; POS.custs = r.customers; POS.custAt = Date.now(); cb(POS.custs); }).catch(function (err) { toast(err.message); });
+    api('apiCustList').then(function (r) { if (!r) return; POS.custs = r.customers; POS.custAt = Date.now(); cb(POS.custs); }).catch(function (err) { toast(err.message); });
   }
   function matches(c, q) { q = q.trim().toLowerCase(); if (!q) return true; return (c.name + ' ' + c.nickname).toLowerCase().indexOf(q) >= 0; }
   function nameModal() {
@@ -823,10 +1021,10 @@
         if (a === 'pick') {
           var c = list.filter(function (x) { return x.id === b.dataset.id; })[0];
           send(t.id, { op: 'set', k: 'customerId', v: c.id }); send(t.id, { op: 'set', k: 'name', v: c.name }); send(t.id, { op: 'set', k: 'isNew', v: false });
-          call('apiCustGet', state.token, c.id).then(function (r) { if (r && r.ok) { POS.keep[c.id] = r.bottles; redraw(); } }).catch(function () {});
+          api('apiCustGet', c.id).then(function (r) { if (r && r.ok) { POS.keep[c.id] = r.bottles; redraw(); } }).catch(function () {});
           done();
         } else if (a === 'reg') {
-          call('apiCustSave', state.token, { name: val.trim() }).then(function (r) {
+          api('apiCustSave', { name: val.trim() }).then(function (r) {
             if (!r) return;
             if (!r.ok && r.duplicate) { toast('同じ名前のお客様がいます。一覧から選んでください'); return; }
             if (!r.ok) { toast(r.error); return; }
@@ -864,7 +1062,7 @@
     function mname(id) { var m = methods.filter(function (x) { return x.id === id; })[0]; return m ? m.name : id; }
     function body() {
       var diff = t.total - sum();
-      var h = mHead('会計') + '<div class="row"><span class="muted">' + esc(t.name || '新規') + '　' + t.people + '名</span><b style="font-size:30px">' + yen(t.total) + '</b></div>';
+      var h = mHead(POS.demo ? 'デモの会計' : '会計') + (POS.demo ? '<div class="msg err" style="font-weight:700;line-height:1.6">⚠ デモです。実際の会計ではありません。売上にも、レジにも入りません。</div>' : '') + '<div class="row"><span class="muted">' + esc(t.name || '新規') + '　' + t.people + '名</span><b style="font-size:30px">' + yen(t.total) + '</b></div>';
       rows.forEach(function (r, i) {
         h += '<div class="stack" style="gap:6px"><div class="pay-row"><select class="input" data-m-in="method" data-i="' + i + '">' + methods.map(function (m) { return '<option value="' + m.id + '"' + (m.id === r.method ? ' selected' : '') + '>' + esc(m.name) + '</option>'; }).join('') + '</select>' +
           '<input class="input" type="number" inputmode="numeric" data-m-in="amount" data-i="' + i + '" value="' + (r.amount === '' ? '' : r.amount) + '" aria-label="金額">' +
@@ -878,7 +1076,7 @@
       });
       h += '<div class="chips"><button class="chip" data-m="add">＋ 支払い方法を追加（分けて払う）</button><button class="chip' + (credit ? ' warn' : '') + '" data-m="credit">未収（ツケ）' + (credit ? '：' + yen(credit) : '') + '</button></div>';
       h += '<div class="msg ' + (diff === 0 ? 'ok' : 'err') + '" style="font-size:15px">' + (diff === 0 ? '金額が合っています' : diff > 0 ? 'あと ' + yen(diff) + ' 足りません' : yen(-diff) + ' 多すぎます') + '</div>';
-      h += '<div class="row" style="justify-content:flex-end"><button class="btn ghost small" data-m="close">戻る</button><button class="btn" data-m="ok"' + (diff === 0 && !POS.payBusy ? '' : ' disabled') + ' style="min-width:150px">会計を確定する</button></div>';
+      h += '<div class="row" style="justify-content:flex-end"><button class="btn ghost small" data-m="close">戻る</button><button class="btn" data-m="ok"' + (diff === 0 && !POS.payBusy ? '' : ' disabled') + ' style="min-width:150px' + (POS.demo ? ';background:#C62828' : '') + '">' + (POS.demo ? 'デモの会計を確定する' : '会計を確定する') + '</button></div>';
       return h;
     }
     var mm = modal(body(), function (b, done, el) {
@@ -899,7 +1097,7 @@
         POS.payBusy = true;
         var pays = rows.filter(function (r) { return Number(r.amount) > 0; }).map(function (r) { return { method: r.method, amount: Math.round(Number(r.amount)), received: Number(r.received) || undefined }; });
         b.disabled = true; b.textContent = '確定しています…';
-        call('apiPosPay', state.token, t.id, pays, credit).then(function (r) {
+        api('apiPosPay', t.id, pays, credit).then(function (r) {
           POS.payBusy = false;
           if (!r) return;
           if (!r.ok) { toast(r.error || '会計できませんでした'); if (r.ticket) { POS.tk = r.ticket; calc(POS.tk); } el.innerHTML = body(); return; }
@@ -928,7 +1126,7 @@
     confirmBox('伝票を取り消す', '「' + (t.name || '新規') + '」の伝票を取り消します。取り消した記録は管理者が見られます。よろしいですか？', '取り消す').then(function (ok) {
       if (!ok) return;
       POS.q[t.id] = [];
-      call('apiPosVoid', state.token, t.id, '').then(function (r) {
+      api('apiPosVoid', t.id, '').then(function (r) {
         if (!r || !r.ok) { toast((r && r.error) || '取り消せませんでした'); return; }
         toast('伝票を取り消しました'); POS.view = 'list'; POS.tk = null; refreshList(function () { draw(); }).catch(function () { draw(); });
       }).catch(function (err) { toast(err.message); });
@@ -938,7 +1136,7 @@
     var t = POS.tk;
     confirmBox('会計を取り消して開き直す', 'この伝票の会計を取り消し、修正できる状態に戻します。その日の売上・顧客の来店履歴も戻ります。', '開き直す').then(function (ok) {
       if (!ok) return;
-      call('apiPosReopen', state.token, t.id, '').then(function (r) {
+      api('apiPosReopen', t.id, '').then(function (r) {
         if (!r || !r.ok) { toast((r && r.error) || '開き直せませんでした'); return; }
         POS.tk = r.ticket; calc(POS.tk); refreshList(function () { draw(); }).catch(function () { draw(); });
       }).catch(function (err) { toast(err.message); });
@@ -977,7 +1175,7 @@
     Array.prototype.forEach.call(main.querySelectorAll('[data-c]'), function (b) { b.onclick = function () { custDetail(b.dataset.c, main); }; });
   }
   function custDetail(id, main) {
-    call('apiCustGet', state.token, id).then(function (r) {
+    api('apiCustGet', id).then(function (r) {
       if (!r) return;
       if (!r.ok) { toast(r.error); return; }
       var c = r.customer;
@@ -996,7 +1194,7 @@
         if (b.dataset.m === 'close') closeModal();
         else if (b.dataset.m === 'edit') { closeModal(); custForm(c, function () { POS.custAt = 0; loadCusts(function () { drawCust(main); }); }); }
         else if (b.dataset.m === 'empty') {
-          call('apiCustBottleEmpty', state.token, b.dataset.id).then(function () { toast('空にしました'); POS.custAt = 0; POS.keep = {}; closeModal(); custDetail(id, main); }).catch(function (err) { toast(err.message); });
+          api('apiCustBottleEmpty', b.dataset.id).then(function () { toast('空にしました'); POS.custAt = 0; POS.keep = {}; closeModal(); custDetail(id, main); }).catch(function (err) { toast(err.message); });
         }
       });
     }).catch(function (err) { toast(err.message); });
@@ -1019,13 +1217,13 @@
       var data = { id: c ? c.id : '', name: $('#cn', m).value, nickname: $('#ck', m).value, birthday: $('#cb', m).value, company: $('#cc', m).value, likes: $('#cl', m).value, memo: $('#cmm', m).value };
       if (isAdmin()) { data.phone = $('#cp', m).value; data.staffId = $('#cs', m).value; }
       var btn = $('#cs2', m); busy(btn, true);
-      call('apiCustSave', state.token, data).then(function (r) {
+      api('apiCustSave', data).then(function (r) {
         busy(btn, false);
         if (!r) return;
         if (!r.ok && r.duplicate) {
           confirmBox('同じ名前のお客様がいます', 'それでも別のお客様として登録しますか？（同じ人なら、一覧から選んでください）', '登録する').then(function (yes) {
             if (!yes) return;
-            data.force = true; call('apiCustSave', state.token, data).then(function () { closeModal(); toast('保存しました'); done(); });
+            data.force = true; api('apiCustSave', data).then(function () { closeModal(); toast('保存しました'); done(); });
           });
           return;
         }

@@ -181,7 +181,7 @@ table.tbl{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
 <div id="app"><div class="loading">読み込み中…</div></div>
 <div id="modal-root"></div>
 
-<script src="pos.js?v=1"></script>
+<script src="pos.js?v=2"></script>
 <script src="admin-pos.js?v=2"></script>
 <script src="bonus.js?v=1"></script>
 <script src="shift.js?v=1"></script>
@@ -447,6 +447,7 @@ function renderStaff() {
 }
 
 function staffTab() {
+  if (window.posDemoGuard && !posDemoGuard(state.staffTab)) return;   // デモ中に実際の画面へ移るときは、デモを終わるか確かめる
   Array.prototype.forEach.call(document.querySelectorAll('.s-nav button'), function (b) {
     b.classList.toggle('on', b.dataset.tab === state.staffTab);
     if (b.dataset.tab === state.staffTab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -556,6 +557,7 @@ function drawStaffHome(d) {
 var ADMIN_TABS = [['dash', 'ダッシュボード'], ['pos', '伝票・売上'], ['shift', 'シフト'], ['bonus', '歩合'], ['exp', '経費'], ['pl', '月次収支'], ['export', 'Excel書き出し'], ['cal', '目標・カレンダー'], ['custadm', '顧客管理'], ['users', 'スタッフ管理'], ['master', 'マスタ設定'], ['notices', 'お知らせ'], ['settings', '設定']];
 
 function renderAdmin() {
+  if (window.posDemoOff) posDemoOff();   // 管理画面にデモは持ち込まない
   render(
     '<div class="admin"><nav class="a-side" aria-label="管理メニュー">' +
     '<div class="brand">' + esc(APP_NAME) + '</div><div class="who">' + esc(state.user.name) + ' でログイン中</div>' +
